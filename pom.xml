@@ -10,7 +10,7 @@
     <name>ds-discover</name> <!-- Human readable name, uppercase and spaces welcome -->
     <groupId>dk.kb.discover</groupId>
     <artifactId>ds-discover</artifactId>
-    <version>1.2.1-SNAPSHOT</version>
+    <version>1.2.2-SNAPSHOT</version>
     
     <packaging>war</packaging>
     <description>ds-discover by the Royal Danish Library</description>
@@ -66,7 +66,7 @@
         <dependency>
             <groupId>dk.kb.util</groupId>
             <artifactId>kb-util</artifactId>
-            <version>1.4.19</version>
+            <version>1.4.22</version>
         </dependency>
         <dependency>
             <groupId>jakarta.servlet</groupId>
@@ -483,7 +483,7 @@
                         <webResource> <!-- Store application name, version and build time -->
                           <directory>${basedir}/src/main/resources/</directory>
                           <includes>
-                            <include>build.properties</include>
+                            <include>ds-discover.build.properties</include>
                           </includes>
                           <filtering>true</filtering>
                         </webResource>
@@ -538,6 +538,39 @@
                         <phase>package</phase>
                     </execution>
                 </executions>
+            </plugin>
+            <!-- Plugin used to extract information on the current git setup.
+     See: https://github.com/git-commit-id/git-commit-id-maven-plugin -->
+            <plugin>
+                <groupId>io.github.git-commit-id</groupId>
+                <artifactId>git-commit-id-maven-plugin</artifactId>
+                <version>7.0.0</version>
+                <executions>
+                    <execution>
+                        <id>get-the-git-infos</id>
+                        <goals>
+                            <goal>revision</goal>
+                        </goals>
+                        <phase>initialize</phase>
+                    </execution>
+                </executions>
+                <configuration>
+                    <includeOnlyProperties>
+                        <includeOnlyProperty>git.commit.id</includeOnlyProperty>
+                        <includeOnlyProperty>git.branch</includeOnlyProperty>
+                        <includeOnlyProperty>git.tag</includeOnlyProperty>
+                        <includeOnlyProperty>git.closest.tag.name</includeOnlyProperty>
+                        <includeOnlyProperty>git.commit.author.time</includeOnlyProperty>
+                    </includeOnlyProperties>
+                    <replacementProperties>
+                        <replacementProperty>
+                            <property>git.tag</property>
+                            <regex>false</regex>
+                            <token>git.tag</token>
+                            <value>unknown</value>
+                        </replacementProperty>
+                    </replacementProperties>
+                </configuration>
             </plugin>
         </plugins>
     </build>

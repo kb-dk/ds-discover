@@ -58,6 +58,19 @@ public class SolrService {
     public static final String START = "start";
     public static final String FACET = "facet";
     public static final String FACET_FIELD = "facet.field";
+    public static final String SPELLCHECK = "spellcheck";
+    public static final String SPELLCHECK_BUILD = "spellcheck.build";
+    public static final String SPELLCHECK_RELOAD = "spellcheck.reload";
+    public static final String SPELLCHECK_QUERY = "spellcheck.q";
+    public static final String SPELLCHECK_DICTIONARY = "spellcheck.dictionary";
+    public static final String SPELLCHECK_COUNT= "spellcheck.count";
+    public static final String SPELLCHECK_ONLY_MORE_POPULAR= "spellcheck.onlyMorePopular";
+    public static final String SPELLCHECK_EXTENDED_RESULTS= "spellcheck.extendedResults";
+    public static final String SPELLCHECK_COLLATE= "spellcheck.collate";
+    public static final String SPELLCHECK_MAX_COLLATIONS= "spellcheck.maxCollations";       
+    public static final String SPELLCHECK_MAX_COLLATION_TRIES= "spellcheck.maxCollationTries";
+    public static final String SPELLCHECK_ACCURACY= "spellcheck.accuracy";
+        
     public static final String QOP = "q.op";
     public static final String WT = "wt";
     public static final String VERSION = "version"; // Used with wt=xml, always 2.2, not mandatory
@@ -250,6 +263,8 @@ public class SolrService {
 
     }
 
+   
+    
     /**
      * Issue a Solr query and return the result.
      *
@@ -267,7 +282,26 @@ public class SolrService {
      * @return Solr response.
      */
     @SuppressWarnings("SuspiciousTernaryOperatorInVarargsCall")
-    public String query(String q, List<String> fq, Integer rows, Integer start, String fl, String facet, List<String> facetField, String qOp, String wt, String version, String indent, String debug, String debugExplainStructured, Map<String, String[]> extra) {
+    public String query(String q,
+    		List<String> fq,
+    		Integer rows,
+    		Integer start,
+    		String fl,
+    		String facet,
+    		List<String> facetField,
+    		String spellcheck,
+    		String spellcheckBuild,
+    		String spellcheckReload,
+    		String spellcheckQuery,
+    		String spellcheckDictionary,    		                 
+            Integer spellcheckCount,
+    	    String spellchecKOnlyMorePopular,
+    	    String spellcheckExtendedResults,
+    	    String spellcheckCollate,
+    	    Integer spellcheckMaxCollations,
+    	    Integer spellcheckMaxCollationTries,
+    	    Double spellcheckAccuracy,
+    	    String qOp, String wt, String version, String indent, String debug, String debugExplainStructured, Map<String, String[]> extra) {
         if (q == null) {
             throw new InvalidArgumentServiceException("q is mandatory but was missing");
         }
@@ -280,6 +314,20 @@ public class SolrService {
         if (facetField != null) {
             facetField.forEach(ff -> builder.queryParam(FACET_FIELD, ff));
         }
+                      
+        addParamIfAvailable(builder, SPELLCHECK, Boolean.parseBoolean(spellcheck));
+        addParamIfAvailable(builder, SPELLCHECK_BUILD, Boolean.parseBoolean(spellcheckBuild));
+        addParamIfAvailable(builder, SPELLCHECK_RELOAD, Boolean.parseBoolean(spellcheckReload));        
+        addParamIfAvailable(builder, SPELLCHECK_QUERY, spellcheckQuery);
+        addParamIfAvailable(builder, SPELLCHECK_DICTIONARY, spellcheckDictionary);
+        addParamIfAvailable(builder, SPELLCHECK_COUNT, spellcheckCount);
+        addParamIfAvailable(builder, SPELLCHECK_ONLY_MORE_POPULAR, spellchecKOnlyMorePopular);
+        addParamIfAvailable(builder, SPELLCHECK_EXTENDED_RESULTS, spellcheckExtendedResults);               
+        addParamIfAvailable(builder, SPELLCHECK_COLLATE, spellcheckCollate);
+        addParamIfAvailable(builder, SPELLCHECK_MAX_COLLATIONS, spellcheckMaxCollations);
+        addParamIfAvailable(builder, SPELLCHECK_MAX_COLLATION_TRIES, spellcheckMaxCollationTries);
+        addParamIfAvailable(builder, SPELLCHECK_ACCURACY, spellcheckAccuracy);
+        
         addParamIfAvailable(builder, VERSION, version);
         addParamIfAvailable(builder, INDENT, indent);
 
@@ -480,15 +528,31 @@ public class SolrService {
     }
 
     /**
-     * If {@code value} is not null, {@code key=value} is added as a param to the builder.
+     * If {@code value} is not null, {@code key=value} is added as a param to the builder.<br>
+     * Also if String is empty or array is empty param will also not be added.  <br>
+     * Solr will fail on the query etc.: &spellcheck.dictionary=<br>
+     * This happens because openApi will set empty textboxes as 'parameter1='<br>
+     * The solr admin page does submit empty fields to parameter list<br>
+     * 
      * @param builder builder for a Solr query.
      * @param key     key for the param to add if a value is present.
      * @param value   value for the key.
      */
-    private void addParamIfAvailable(UriBuilder builder, String key, Object value) {
-        if (value != null) {
-            builder.queryParam(key, value);
-        }
+    private void addParamIfAvailable(UriBuilder builder, String key, Object value) {           
+    	if (value == null) {
+    		return;    		
+    	}
+    	else if (value instanceof String) {
+    		if ("".equals(value.toString().trim()));
+    	    return;
+    	}
+    	else if (value instanceof Object[]) {
+    		Object[] array = (Object[]) value;
+    		if (array.length == 0) {
+    			return;
+    		}
+    	}
+    	builder.queryParam(key, value); // There is some real value here.    	    	
     }
 
     /**
