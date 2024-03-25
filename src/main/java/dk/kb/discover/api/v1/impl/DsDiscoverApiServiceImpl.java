@@ -65,7 +65,7 @@ public class DsDiscoverApiServiceImpl extends ImplBase implements DsDiscoverApi 
      *   search/replace</li>
      * </ol>
      */
-    public static final String FILTER_CACHE_PREFIX = "{!cache=true}";
+    public static final String FILTER_CACHE_PREFIX = "{%21cache=true}";
 
     /* How to access the various web contexts. See https://cxf.apache.org/docs/jax-rs-basics.html#JAX-RSBasics-Contextannotations */
 

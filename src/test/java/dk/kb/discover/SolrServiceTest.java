@@ -36,7 +36,7 @@ class SolrServiceTest {
         String response = "\"fq\":[\n" +
                 "        \"number_of_episodes:[2 TO 10]\",\n" +
                 "        \"resource_description:[* TO \\\"Moving Image\\\"]\",\n" +
-                "        \"{!cache=true}(((access_searlige_visningsvilkaar:\\\"Visning kun af metadata\\\") OR (catalog:\\\"Maps\\\") OR (collection:\\\"Det Kgl. Bibliotek; Radio/TV-Samlingen\\\") OR (catalog:\\\"Samlingsbilleder\\\")) -(id:(\\\"fr508045.tif\\\" OR \\\"fr552041x.tif\\\")) -(access_blokeret:true) -(cataloging_language:*tysk*))\"\n" +
+                "        \"{%21cache=true}(((access_searlige_visningsvilkaar:\\\"Visning kun af metadata\\\") OR (catalog:\\\"Maps\\\") OR (collection:\\\"Det Kgl. Bibliotek; Radio/TV-Samlingen\\\") OR (catalog:\\\"Samlingsbilleder\\\")) -(id:(\\\"fr508045.tif\\\" OR \\\"fr552041x.tif\\\")) -(access_blokeret:true) -(cataloging_language:*tysk*))\"\n" +
                 "      ],\n";
         String exp = "\"fq\":[\n" +
                 "        \"number_of_episodes:[2 TO 10]\",\n" +
@@ -50,7 +50,7 @@ class SolrServiceTest {
         String prefix = DsDiscoverApiServiceImpl.FILTER_CACHE_PREFIX;
         String response = "      \"q.op\":\"OR\",\n" +
                 "      \"fq\":[\"catalog:\\\"Samlingsbilleder\\\"\",\n" +
-                "        \"{!cache=true}(((access_searlige_visningsvilkaar:\\\"Visning kun af metadata\\\") OR (catalog:\\\"Maps\\\") OR (collection:\\\"Det Kgl. Bibliotek; Radio/TV-Samlingen\\\") OR (catalog:\\\"Samlingsbilleder\\\")) -(id:(\\\"fr508045.tif\\\" OR \\\"fr552041x.tif\\\")) -(access_blokeret:true) -(cataloging_language:*tysk*))\"],\n" +
+                "        \"{%21cache=true}(((access_searlige_visningsvilkaar:\\\"Visning kun af metadata\\\") OR (catalog:\\\"Maps\\\") OR (collection:\\\"Det Kgl. Bibliotek; Radio/TV-Samlingen\\\") OR (catalog:\\\"Samlingsbilleder\\\")) -(id:(\\\"fr508045.tif\\\" OR \\\"fr552041x.tif\\\")) -(access_blokeret:true) -(cataloging_language:*tysk*))\"],\n" +
                 "      \"rows\":\"10\",\n" +
                 "      \"wt\":\"json\",";
         String exp = "      \"q.op\":\"OR\",\n" +
@@ -64,7 +64,7 @@ class SolrServiceTest {
     void stripFilterJSONSingle() {
         String prefix = DsDiscoverApiServiceImpl.FILTER_CACHE_PREFIX;
         String response = "  \"fq\":[\n" +
-                "        \"{!cache=true}(((access_searlige_visningsvilkaar:\\\"Visning kun af metadata\\\") OR (catalog:\\\"Maps\\\") OR (collection:\\\"Det Kgl. Bibliotek; Radio/TV-Samlingen\\\") OR (catalog:\\\"Samlingsbilleder\\\")) -(id:(\\\"fr508045.tif\\\" OR \\\"fr552041x.tif\\\")) -(access_blokeret:true) -(cataloging_language:*tysk*))\"\n" +
+                "        \"{%21cache=true}(((access_searlige_visningsvilkaar:\\\"Visning kun af metadata\\\") OR (catalog:\\\"Maps\\\") OR (collection:\\\"Det Kgl. Bibliotek; Radio/TV-Samlingen\\\") OR (catalog:\\\"Samlingsbilleder\\\")) -(id:(\\\"fr508045.tif\\\" OR \\\"fr552041x.tif\\\")) -(access_blokeret:true) -(cataloging_language:*tysk*))\"\n" +
                 "      ],\n";
         String exp = "";
         assertEquals(exp, SolrService.removePrefixedFilters(response, prefix,"json"));
@@ -88,7 +88,7 @@ class SolrServiceTest {
                 "    <arr name=\"fq\">\n" +
                 "      <str>number_of_episodes:[2 TO 10]</str>\n" +
                 "      <str>resource_description:[* TO \"Moving Image\"]</str>\n" +
-                "      <str>{!cache=true}(((access_searlige_visningsvilkaar:\"Visning kun af metadata\") OR (catalog:\"Maps\") OR (collection:\"Det Kgl. Bibliotek; Radio/TV-Samlingen\") OR (catalog:\"Samlingsbilleder\")) -(id:(\"fr508045.tif\" OR \"fr552041x.tif\")) -(access_blokeret:true) -(cataloging_language:*tysk*))</str>\n" +
+                "      <str>{%21cache=true}(((access_searlige_visningsvilkaar:\"Visning kun af metadata\") OR (catalog:\"Maps\") OR (collection:\"Det Kgl. Bibliotek; Radio/TV-Samlingen\") OR (catalog:\"Samlingsbilleder\")) -(id:(\"fr508045.tif\" OR \"fr552041x.tif\")) -(access_blokeret:true) -(cataloging_language:*tysk*))</str>\n" +
                 "    </arr>\n";
         String exp = "  <str name=\"q.op\">AND</str>\n" +
                 "    <arr name=\"fq\">\n" +
@@ -103,7 +103,7 @@ class SolrServiceTest {
         String prefix = DsDiscoverApiServiceImpl.FILTER_CACHE_PREFIX;
         String response = "<str name=\"q.op\">AND</str>\n" +
                 "    <arr name=\"fq\">\n" +
-                "      <str>{!cache=true}(((access_searlige_visningsvilkaar:\"Visning kun af metadata\") OR (catalog:\"Maps\") OR (collection:\"Det Kgl. Bibliotek; Radio/TV-Samlingen\") OR (catalog:\"Samlingsbilleder\")) -(id:(\"fr508045.tif\" OR \"fr552041x.tif\")) -(access_blokeret:true) -(cataloging_language:*tysk*))</str>\n" +
+                "      <str>{%21cache=true}(((access_searlige_visningsvilkaar:\"Visning kun af metadata\") OR (catalog:\"Maps\") OR (collection:\"Det Kgl. Bibliotek; Radio/TV-Samlingen\") OR (catalog:\"Samlingsbilleder\")) -(id:(\"fr508045.tif\" OR \"fr552041x.tif\")) -(access_blokeret:true) -(cataloging_language:*tysk*))</str>\n" +
                 "    </arr>\n";
         String exp = "<str name=\"q.op\">AND</str>\n";
         assertEquals(exp, SolrService.removePrefixedFilters(response, prefix,"xml"));
