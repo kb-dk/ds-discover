@@ -419,7 +419,10 @@ public class SolrService {
     }
 
     private String getEncodedFilterQuery(String filterQuery){
-        return URLEncoder.encode(filterQuery, StandardCharsets.UTF_8).replace("%21", "!");
+        return URLEncoder.encode(filterQuery, StandardCharsets.UTF_8)
+                .replace("!", "%21")
+                .replace("{", "%7B")
+                .replace("}", "%7D");
     }
 
     /**
@@ -462,10 +465,14 @@ public class SolrService {
                 .uri(solrCall)
                 .build();
 
+        log.warn("Request is: '{}'", request.uri());
+
         HttpResponse<String> response;
         try {
             log.debug("Calling " + solrCall);
             response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+            log.warn("Response is: '{}'", response.body());
         } catch (Exception e) {
             log.warn(String.format(
                     Locale.ROOT, "Unable to perform remote %s call for collection '%s', query '%s'",
