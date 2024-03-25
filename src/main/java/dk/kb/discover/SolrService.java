@@ -309,7 +309,6 @@ public class SolrService {
             throw new InvalidArgumentServiceException("q is mandatory but was missing");
         }
         // TODO: Catch extra arguments and throw "not supported"
-        log.warn("fq in 'query' is: '{}'", fq);
         UriBuilder builder = createBaseRequestBuilder(SELECT, q, fq, rows, start, fl, qOp, wt);
 
         if (facet != null) {
@@ -463,14 +462,11 @@ public class SolrService {
                 .uri(solrCall)
                 .build();
 
-        log.warn("Request is: '{}'", request.uri());
-
         HttpResponse<String> response;
         try {
             log.debug("Calling " + solrCall);
             response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
-            log.warn("Response is: '{}'", response.body());
         } catch (Exception e) {
             log.warn(String.format(
                     Locale.ROOT, "Unable to perform remote %s call for collection '%s', query '%s'",
