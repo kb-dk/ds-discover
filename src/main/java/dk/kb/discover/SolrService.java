@@ -407,22 +407,20 @@ public class SolrService {
                 .queryParam(WT, WT_ENUM.safeParse(wt));
         // TODO: Add role based filters
 
-        log.warn("Builder before adding filter queries: '{}'", builder.toString());
-
         if (fq != null) {
-            fq.forEach(fqs -> builder.queryParam(FQ, getEncodedFilterQuery(fqs)));
+            fq.forEach(fqs -> {
+                // Manually encoding { and } as jersey (which provides the URLBuilder can't handle these.
+                // See https://stackoverflow.com/questions/35659273/encoding-curly-braces-in-jersey-client-2/46186894#46186894
+                // and https://github.com/Mercateo/rest-schemagen/issues/51 for context.
+                fqs = fqs.replaceAll("\\{", "%7B").replaceAll("\\}", "%7D");
+                builder.queryParam(FQ, fqs);
+            });
         }
+
         addParamIfAvailable(builder, ROWS, rows);
         addParamIfAvailable(builder, START, start);
         addParamIfAvailable(builder, FL, fl);
         return builder;
-    }
-
-    private String getEncodedFilterQuery(String filterQuery){
-        return URLEncoder.encode(filterQuery, StandardCharsets.UTF_8)
-                .replace("!", "%21")
-                .replace("{", "%7B")
-                .replace("}", "%7D");
     }
 
     /**
