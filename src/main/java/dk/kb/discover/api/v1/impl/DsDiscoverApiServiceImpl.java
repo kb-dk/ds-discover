@@ -65,7 +65,8 @@ public class DsDiscoverApiServiceImpl extends ImplBase implements DsDiscoverApi 
      *   search/replace</li>
      * </ol>
      */
-    public static final String FILTER_CACHE_PREFIX = "{%21cache=true}";
+    public static final String FILTER_CACHE_PREFIX = "{!cache=true}"; // {!cache=true}
+
 
     /* How to access the various web contexts. See https://cxf.apache.org/docs/jax-rs-basics.html#JAX-RSBasics-Contextannotations */
 
@@ -312,10 +313,14 @@ public class DsDiscoverApiServiceImpl extends ImplBase implements DsDiscoverApi 
             //Add filter query from license module.
             fq = addAccessFilter("solrSearch", fq);
 
+            log.warn("Filter query is now: '{}'", fq);
+
             String rawResponse = solr.query(q, fq, rows, start, fl, facet, facetField,
             		spellcheck,spellcheckBuild,spellcheckReload,spellcheckQuery,spellcheckDictionary,spellcheckCount,spellchecKOnlyMorePopular,spellcheckExtendedResults,spellcheckCollate,spellcheckMaxCollations,spellcheckMaxCollationTries,spellcheckAccuracy,
             		qOp,
                     wt, version, indent, debug, debugExplainStructured, extra);
+
+            log.warn("Raw response is: '{}'", rawResponse);
             return SolrService.removePrefixedFilters(rawResponse, FILTER_CACHE_PREFIX, wt);
         } catch (Exception e){
             throw handleException(e);
@@ -381,6 +386,7 @@ public class DsDiscoverApiServiceImpl extends ImplBase implements DsDiscoverApi 
             fq = new ArrayList<>();
         }
         if (filterQuery.getFilterQuery() != null && !filterQuery.getFilterQuery().isEmpty()) {
+            log.warn("Adding filterquery with prefix: '{}'", FILTER_CACHE_PREFIX);
             fq.add(FILTER_CACHE_PREFIX + filterQuery.getFilterQuery()); //Add the additional filter query
         }
         return fq;

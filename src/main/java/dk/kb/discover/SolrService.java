@@ -23,9 +23,12 @@ import org.slf4j.LoggerFactory;
 
 import javax.ws.rs.core.UriBuilder;
 import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
@@ -306,6 +309,7 @@ public class SolrService {
             throw new InvalidArgumentServiceException("q is mandatory but was missing");
         }
         // TODO: Catch extra arguments and throw "not supported"
+        log.warn("fq in 'query' is: '{}'", fq);
         UriBuilder builder = createBaseRequestBuilder(SELECT, q, fq, rows, start, fl, qOp, wt);
 
         if (facet != null) {
@@ -402,13 +406,20 @@ public class SolrService {
                 .queryParam(QOP, QOP_ENUM.safeParse(qOp))
                 .queryParam(WT, WT_ENUM.safeParse(wt));
         // TODO: Add role based filters
+
+        log.warn("Builder before adding filter queries: '{}'", builder.toString());
+
         if (fq != null) {
-            fq.forEach(fqs -> builder.queryParam(FQ, fqs));
+            fq.forEach(fqs -> builder.queryParam(FQ, getEncodedFilterQuery(fqs)));
         }
         addParamIfAvailable(builder, ROWS, rows);
         addParamIfAvailable(builder, START, start);
         addParamIfAvailable(builder, FL, fl);
         return builder;
+    }
+
+    private String getEncodedFilterQuery(String filterQuery){
+        return URLEncoder.encode(filterQuery, StandardCharsets.UTF_8).replace("%21", "!");
     }
 
     /**
