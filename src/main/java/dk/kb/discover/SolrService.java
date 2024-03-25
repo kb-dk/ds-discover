@@ -23,9 +23,12 @@ import org.slf4j.LoggerFactory;
 
 import javax.ws.rs.core.UriBuilder;
 import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
@@ -402,9 +405,17 @@ public class SolrService {
                 .queryParam(QOP, QOP_ENUM.safeParse(qOp))
                 .queryParam(WT, WT_ENUM.safeParse(wt));
         // TODO: Add role based filters
+
         if (fq != null) {
-            fq.forEach(fqs -> builder.queryParam(FQ, fqs));
+            fq.forEach(fqs -> {
+                // Manually encoding { and } as jersey (which provides the URLBuilder can't handle these.
+                // See https://stackoverflow.com/questions/35659273/encoding-curly-braces-in-jersey-client-2/46186894#46186894
+                // and https://github.com/Mercateo/rest-schemagen/issues/51 for context.
+                fqs = fqs.replaceAll("\\{", "%7B").replaceAll("\\}", "%7D");
+                builder.queryParam(FQ, fqs);
+            });
         }
+
         addParamIfAvailable(builder, ROWS, rows);
         addParamIfAvailable(builder, START, start);
         addParamIfAvailable(builder, FL, fl);
@@ -455,6 +466,7 @@ public class SolrService {
         try {
             log.debug("Calling " + solrCall);
             response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
         } catch (Exception e) {
             log.warn(String.format(
                     Locale.ROOT, "Unable to perform remote %s call for collection '%s', query '%s'",
