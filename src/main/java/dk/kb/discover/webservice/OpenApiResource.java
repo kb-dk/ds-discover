@@ -5,16 +5,13 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import dk.kb.discover.config.ServiceConfig;
-import dk.kb.discover.util.DsDiscoverClient;
 import dk.kb.util.Resolver;
-import dk.kb.util.webservice.exception.InvalidArgumentServiceException;
+import dk.kb.util.string.CallbackReplacer;
+import dk.kb.util.webservice.ImplBase;
 import dk.kb.util.webservice.exception.NotFoundServiceException;
-import dk.kb.util.yaml.YAML;
-import org.mockserver.model.Not;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.Yaml;
-import org.yaml.snakeyaml.error.YAMLException;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
@@ -23,13 +20,11 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
-import java.util.List;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class OpenApiResource {
+public class OpenApiResource extends ImplBase {
     private static final Logger log = LoggerFactory.getLogger(OpenApiResource.class);
 
 
@@ -39,7 +34,14 @@ public class OpenApiResource {
      * Pattern to allow search-replace for variabels defined as ${config.yaml.path} in OpenAPI specifications.
      * Everything after 'config.' is treated as a path to an entry in the backing configuration.
      */
-    private static final Pattern CONFIG_REPLACEMENT= Pattern.compile("\\$\\{config:([^}]+)\\}");
+    private static final Pattern CONFIG_REPLACEMENT= Pattern.compile("\\$\\{config:([^}]+)}");
+
+    /**
+     * Replacer that use {@link #CONFIG_REPLACEMENT} for matching and {@link #getReplacementForMatch(String)}
+     * for getting the replacement.
+     */
+    private static final CallbackReplacer CONFIG_PROCESSOR = new CallbackReplacer(
+            CONFIG_REPLACEMENT, OpenApiResource::getReplacementForMatch, true);
 
     /**
      * Deliver the OpenAPI specification with substituted configuration values as a YAML file.
@@ -53,7 +55,9 @@ public class OpenApiResource {
             String inputYaml = Resolver.readFileFromClasspath(path + ".yaml");
 
             if (inputYaml == null){
-                throw new NotFoundServiceException("No OpenAPI specification with path '" + path + ".yaml' was found.");
+                // We want to see if people are trying to hack their way in by trying different paths
+                log.warn("No OpenAPI specification with path '{}' was found.", path);
+                throw new FileNotFoundException("No OpenAPI specification with path '" + path + ".yaml' was found.");
             }
 
             String replacedText = replaceConfigPlaceholders(inputYaml);
@@ -62,8 +66,10 @@ public class OpenApiResource {
                     .header("Content-Disposition", "inline; filename=" + path + ".yaml");
 
             return builder.build();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        } catch (IOException | RuntimeException e){
+            log.warn("Unable to dynamically enhance the YAML OpenAPI specification with path '{}'", path, e);
+            throw new NotFoundServiceException(
+                    "Unable to dynamically enhance the YAML OpenAPI specification with path '" + path + ".yaml'");
         }
     }
 
@@ -76,23 +82,32 @@ public class OpenApiResource {
     public Response getJsonSpec(@PathParam("path") String path){
         try {
             return createJson(path);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        } catch (Exception e) {
+            throw handleException(e);
         }
     }
 
-    private static Response createJson(String path) throws JsonProcessingException {
+    static Response createJson(String path) {
         try {
             path = new File(path).getName();
             String inputYaml = Resolver.readFileFromClasspath(path + ".yaml");
+
+            if (inputYaml == null){
+                // We want to see if people are trying to hack their way in by trying different paths
+                log.warn("No OpenAPI specification with path '{}' was found.", path);
+                throw new FileNotFoundException("No OpenAPI specification with path '" + path + ".yaml' was found.");
+            }
+
             String correctString = OpenApiResource.replaceConfigPlaceholders(inputYaml);
 
             String jsonString = getJsonString(correctString);
 
             Response.ResponseBuilder builder = Response.ok(jsonString).header("Content-Disposition", "inline; filename=" + path + ".json");
             return builder.build();
-        } catch (YAMLException | IOException  | NullPointerException e){
-            throw new NotFoundServiceException("No OpenAPI specification with path '" + path + ".yaml' was found.");
+        } catch (IOException | RuntimeException e){
+            log.warn("Unable to dynamically enhance the YAML OpenAPI specification with path '{}'", path, e);
+            throw new NotFoundServiceException(
+                    "Unable to dynamically enhance the YAML OpenAPI specification with path '" + path + ".yaml'");
         }
     }
 
@@ -115,16 +130,7 @@ public class OpenApiResource {
      * @return an updated YAML string, where config placeholders have been replaced.
      */
     private static String replaceConfigPlaceholders(String originalApiSpec) {
-        Matcher matcher = CONFIG_REPLACEMENT.matcher(originalApiSpec);
-
-        StringBuilder replacedText = new StringBuilder();
-        while (matcher.find()){
-           String replacementPath = matcher.group(1);
-           String replacement = getReplacementForMatch(replacementPath);
-           matcher.appendReplacement(replacedText, replacement);
-        }
-        matcher.appendTail(replacedText);
-        return replacedText.toString();
+        return CONFIG_PROCESSOR.apply(originalApiSpec);
     }
 
     /**
