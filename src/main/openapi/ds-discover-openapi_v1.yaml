@@ -991,6 +991,32 @@ paths:
             application/json:
               schema:
                 type: string
+
+  /solr/broadcasts/platform/dr-arkiv/{ds_id}:
+    get:
+      tags:
+        - '${project.name}'
+      summary: 'Return dr productions if there is a match'
+      operationId: matchingDrProductionIdBroadcasts
+      security:
+        - KBOAuth:
+            - any
+      parameters:
+        - name: ds_id
+          in: path
+          description: 'The unique ID of a DR-arkiv broadcast'
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Get broadcasts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DrBroadcast'
+        '404':
+          description: 'ds id not found'
                 
   /monitor/whoami:
     get:
@@ -1008,11 +1034,49 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Whoami'
-                
-                
+
 
 components:
   schemas:
+
+    DrBroadcast:
+      type: object
+      description: "Object containing results with the same dr_production_id"
+      properties:
+        has_production_id:
+          type: boolean
+          description: "Is there a DR-arkivet production id?"
+        dr_production_id:
+          type: string
+          description: "DR-arkivet production id"
+        broadcast:
+          type: array
+          items:
+            $ref: "#/components/schemas/Broadcast"
+
+    Broadcast:
+      type: object
+      properties:
+        dsId:
+          type: string
+          description: "Unique id of a DR-arkivet broadcast."
+        title:
+          type: string
+          description: "Title for broadcast."
+        startTime:
+          type: string
+          format: date-time
+          description: "Start time of broadcast."
+        endTime:
+          type: string
+          format: date-time
+          description: "End time of broadcast."
+        restricted:
+          type: boolean
+          description: "Is the broadcast restricted?"
+        restrictedComment:
+          type: string
+          description: "Comment about why broadcast is restricted, if it is restricted"
     
     Whoami:
       type: object

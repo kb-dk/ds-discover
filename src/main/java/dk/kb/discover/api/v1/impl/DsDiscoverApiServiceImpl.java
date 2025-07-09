@@ -15,6 +15,8 @@ import javax.ws.rs.core.UriInfo;
 import javax.ws.rs.ext.Providers;
 
 import dk.kb.discover.DocumentationExtractor;
+import dk.kb.discover.model.v1.DrBroadcastDto;
+import dk.kb.discover.enums.CollectionTypes;
 import dk.kb.discover.util.LicenseUtil;
 import dk.kb.discover.util.solrshield.Response;
 import dk.kb.discover.util.solrshield.SolrShield;
@@ -106,8 +108,7 @@ public class DsDiscoverApiServiceImpl extends ImplBase implements DsDiscoverApi 
     @Context
     private transient MessageContext messageContext;
 
-
-    private static DsLicenseClient licenseClient;  
+    private static DsLicenseClient licenseClient;
     
     /**
      * Solr [Collection Management Commands](https://solr.apache.org/guide/8_10/collection-management.html)
@@ -358,8 +359,24 @@ public class DsDiscoverApiServiceImpl extends ImplBase implements DsDiscoverApi 
                        
         return rawResponse;
     }
-    
-    
+
+    /**
+     * Return dr productions if there is a match
+     *
+     * @param dsId
+     */
+    @Override
+    public DrBroadcastDto matchingDrProductionIdBroadcasts(String dsId) {
+        // Hardcode collection to "ds" for now
+        String collectionType = CollectionTypes.DS.toString();
+
+        log.debug("matchingDrProductionIdBroadcasts(collection='{}', q='{}', ...) called with call details: {}", collectionType, getCallDetails());
+
+        SolrService solr = SolrManager.getSolrService(collectionType);
+        //solr.query();
+
+        return null;
+    }
     
     /**
      * Request a filter query from ds-license and append it to {@code fq}.

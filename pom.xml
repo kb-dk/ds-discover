@@ -122,7 +122,6 @@
             <artifactId>commons-csv</artifactId>
         </dependency>
 
-
         <dependency>
             <groupId>com.fasterxml.jackson.jaxrs</groupId>
             <artifactId>jackson-jaxrs-xml-provider</artifactId>
@@ -300,7 +299,6 @@
                      which seems to be an unresolved issue: https://github.com/OpenAPITools/openapi-generator/issues/9008 -->
                 <configuration>
                     <!-- https://openapi-generator.tech/docs/generators/java/ -->
-
                     <generatorName>jaxrs-cxf-extended</generatorName>
                     <inputSpec>${project.build.outputDirectory}/openapi.yaml</inputSpec><!-- Will always be overridden -->
                     <modelNameSuffix>Dto</modelNameSuffix>
@@ -320,19 +318,20 @@
                         <modelPackage>${project.package}.model</modelPackage>
                         <!--<dateLibrary>threetenbp</dateLibrary>-->
                         <!--<dateLibrary>Java11</dateLibrary>-->
+                        <dateLibrary>java8</dateLibrary>
                         <implFolder>src/main/java</implFolder>
                         <invokerPackage>${project.package}</invokerPackage>
                     </configOptions>
                     <packageName>${project.package}</packageName>
+                    <typeMappings>
+                        <typeMapping>OffsetDateTime=Instant</typeMapping>
+                    </typeMappings>
+                    <importMappings>
+                        <importMapping>java.time.OffsetDateTime=java.time.Instant</importMapping>
+                    </importMappings>
                 </configuration>
 
-
-
-
                 <executions>
-
-
-
                     <!-- Version 1 -->
                     <!-- When a new version is needed, make a copy of three v1-related executions below, then change
                          v1 to v2 in the copy.
@@ -345,7 +344,6 @@
                          * Update src/main/webapp/WEB-INF/web.xml
                          * Update src/main/webapp/api/index.html
                     -->
-
                     <execution>
                         <!-- Generate API file from the OpenAPI specification (positioned under the target/generated-sources/ folder).
                              These files are overwritten on all builds, so they should never be edited manually. -->
@@ -509,5 +507,4 @@
             </plugin>
         </plugins>
     </build>
-
 </project>
