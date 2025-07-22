@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>dk.kb.discover</groupId>
+        <artifactId>ds-discover-parent</artifactId>
+        <version>3.0.1-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>ds-discover-web</artifactId>
+    <version>${project.parent.version}</version>
+    <packaging>war</packaging>
+
+    <dependencies>
+        <dependency>
+            <groupId>dk.kb.discover</groupId>
+            <artifactId>ds-discover-api</artifactId>
+            <version>${project.parent.version}</version>
+        </dependency>
+
+        <!-- Client for ds-license. This will also require the org.openapitools dependency-->
+        <dependency>
+            <groupId>dk.kb.license</groupId>
+            <artifactId>ds-license-api</artifactId>
+            <version>3.0.1-SNAPSHOT</version>
+        </dependency>
+
+        <!-- TODO remove the dependency to ds-present-web !! -->
+        <!-- TODO fix the DsPresentClient (transformSolrSchema) so it is not tight coupled to the web implementation!!! -->
+        <dependency>
+            <groupId>dk.kb.present</groupId>
+            <artifactId>ds-present-web</artifactId>
+            <version>3.0.1-SNAPSHOT</version>
+            <type>jar</type>
+            <classifier>classes</classifier>
+            <exclusions>
+                <exclusion>
+                    <groupId>*</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>dk.kb.present</groupId>
+            <artifactId>ds-present-api</artifactId>
+            <version>3.0.1-SNAPSHOT</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <resources>
+            <resource>
+                <directory>src/main/openapi</directory>
+                <filtering>true</filtering>
+            </resource>
+            <!-- Needed as specifying <resources> overrides all previous definitions -->
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+            </resource>
+        </resources>
+
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-war-plugin</artifactId>
+                <configuration>
+                    <webXml>src/main/webapp/WEB-INF/web.xml</webXml>
+                    <archive>
+                        <manifest>
+                            <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+                        </manifest>
+                    </archive>
+
+                    <!-- Generate a JAR with client classes and openapi-YAML for easy use by other services -->
+                    <attachClasses>true</attachClasses>
+
+                    <!--Enable maven filtering for the web.xml-->
+                    <filteringDeploymentDescriptors>true</filteringDeploymentDescriptors>
+                    <webResources>
+                        <webResource> <!-- Store application name, version and build time -->
+                            <directory>${basedir}/src/main/resources/</directory>
+                            <includes>
+                                <include>ds-discover.build.properties</include>
+                            </includes>
+                            <filtering>true</filtering>
+                        </webResource>
+                        <resource>
+                            <!--Include the openapi spec files so we can serve them-->
+                            <directory>${project.build.outputDirectory}</directory>
+                            <targetPath>.</targetPath>
+                            <includes>
+                                <include>ds-discover-openapi_v1.json</include>
+                                <include>ds-discover-openapi_v1.yaml</include>
+                            </includes>
+                        </resource>
+                    </webResources>
+                </configuration>
+            </plugin>
+
+
+            <!-- Used only for mvn jetty:run jetty:run-war -->
+            <plugin>
+                <groupId>org.eclipse.jetty</groupId>
+                <artifactId>jetty-maven-plugin</artifactId>
+                <version>10.0.12</version>
+                <configuration>
+                    <deployMode>FORK</deployMode>
+                    <jvmArgs>-Xmx256m  -Djetty.port=9074</jvmArgs>
+                    <jettyXmls>${project.basedir}/target/jetty-res/jetty-env.xml</jettyXmls>
+                    <useTestScope>true</useTestScope>
+                    <!-- https://www.eclipse.org/jetty/documentation/jetty-10/programming-guide/index.html#jetty-run-goal -->
+                    <!-- https://stackoverflow.com/questions/12493798/jetty-maven-plugin-using-scan -->
+                    <scan>2</scan>
+                    <webApp>
+                        <contextPath>/${project.artifactId}/</contextPath>
+                        <descriptor>${project.basedir}/target/${project.build.finalName}/WEB-INF/web.xml</descriptor>
+                        <jettyEnvXml>${project.basedir}/target/jetty-res/jetty-env.xml</jettyEnvXml>
+                    </webApp>
+                </configuration>
+            </plugin>
+            <plugin>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <version>3.6.0</version>
+                <configuration>
+                    <tarLongFileMode>posix</tarLongFileMode>
+                    <descriptors>
+                        <descriptor>src/main/assembly/assembly.xml</descriptor>
+                    </descriptors>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                        <phase>package</phase>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

@@ -17,9 +17,6 @@ package dk.kb.discover.util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.URI;
-import java.util.List;
-
 /**
  * Client for the service. Intended for use by other projects that calls this service.
  * See the {@code README.md} for details on usage.

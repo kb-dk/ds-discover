@@ -9,9 +9,9 @@ target/
 
 README_OLD.md
 .openapi-generator/
-conf/ds-discover-environment.yaml
-conf/ds-discover-local.yaml
+ds-discover-web/conf/ds-discover-environment.yaml
+ds-discover-web/conf/ds-discover-local.yaml
 setup_project.sh
 /deploy2Devel11.sh
 
-/.openapi-generator-ignore
+/ds-discover-api/.openapi-generator-ignore

@@ -1,25 +1,20 @@
 package dk.kb.discover.api.v1.impl;
 
-import java.util.*;
-import java.util.stream.Collectors;
-
-import javax.servlet.ServletConfig;
-import javax.servlet.ServletContext;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.HttpHeaders;
-import javax.ws.rs.core.Request;
-import javax.ws.rs.core.SecurityContext;
-import javax.ws.rs.core.UriInfo;
-import javax.ws.rs.ext.Providers;
-
 import dk.kb.discover.DocumentationExtractor;
+import dk.kb.discover.SolrManager;
+import dk.kb.discover.SolrService;
+import dk.kb.discover.api.v1.DsDiscoverApiApi;
+import dk.kb.discover.config.ServiceConfig;
 import dk.kb.discover.util.LicenseUtil;
 import dk.kb.discover.util.solrshield.Response;
 import dk.kb.discover.util.solrshield.SolrShield;
+import dk.kb.license.model.v1.GetUserQueryInputDto;
+import dk.kb.license.model.v1.GetUsersFilterQueryOutputDto;
+import dk.kb.license.util.DsLicenseClient;
+import dk.kb.util.webservice.ImplBase;
 import dk.kb.util.webservice.exception.InternalServiceException;
-
+import dk.kb.util.webservice.exception.InvalidArgumentServiceException;
+import dk.kb.util.webservice.exception.ServiceException;
 import org.apache.cxf.interceptor.InInterceptors;
 import org.apache.cxf.jaxrs.ext.MessageContext;
 import org.apache.cxf.jaxrs.model.OperationResourceInfo;
@@ -29,18 +24,17 @@ import org.apache.cxf.jaxrs.utils.JAXRSUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
-import dk.kb.discover.SolrManager;
-import dk.kb.discover.SolrService;
-import dk.kb.discover.api.v1.DsDiscoverApi;
-import dk.kb.discover.config.ServiceConfig;
-import dk.kb.license.model.v1.GetUserQueryInputDto;
-import dk.kb.license.model.v1.GetUsersFilterQueryOutputDto;
-import dk.kb.license.model.v1.UserObjAttributeDto;
-import dk.kb.license.util.DsLicenseClient;
-import dk.kb.util.webservice.ImplBase;
-import dk.kb.util.webservice.exception.InvalidArgumentServiceException;
-import dk.kb.util.webservice.exception.ServiceException;
+import javax.servlet.ServletConfig;
+import javax.servlet.ServletContext;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.ws.rs.core.*;
+import javax.ws.rs.ext.Providers;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * ds-discover
@@ -49,7 +43,7 @@ import dk.kb.util.webservice.exception.ServiceException;
  *
  */
 @InInterceptors(interceptors = "dk.kb.discover.webservice.KBAuthorizationInterceptor")
-public class DsDiscoverApiServiceImpl extends ImplBase implements DsDiscoverApi {
+public class DsDiscoverApiServiceImpl extends ImplBase implements DsDiscoverApiApi {
     private static final Logger log = LoggerFactory.getLogger(DsDiscoverApiServiceImpl.class);
 
     /**
