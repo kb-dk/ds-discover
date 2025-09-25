@@ -101,7 +101,7 @@ pipeline {
             steps {
                 script {
                     if ( env.ORIGINAL_BRANCH ==~ "PR-[0-9]+" ) {
-                        def empty_if_no_branch = sh(script: "git ls-remote --heads git@github.com:kb-dk/${env.BUILD_TO_TRIGGER}.git | grep 'refs/heads/${env.SOURCE_BRANCH}'", returnStdout:true).trim()
+                        def empty_if_no_branch = sh(script: "git ls-remote --heads https://github.com/kb-dk/${env.BUILD_TO_TRIGGER}.git | grep 'refs/heads/${env.SOURCE_BRANCH}'", returnStdout:true).trim()
                         echo "Test String: ${empty_if_no_branch}"
                         echo "Triggering: DS-GitHub/${env.BUILD_TO_TRIGGER}/${env.TARGET_BRANCH}"
 
