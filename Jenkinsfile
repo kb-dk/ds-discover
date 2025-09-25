@@ -18,6 +18,7 @@ pipeline {
         string(name: 'ORIGINAL_BRANCH', defaultValue: "${env.BRANCH_NAME}", description: 'Branch of first job to run, will also be PI_ID for a PR')
         string(name: 'ORIGINAL_JOB', defaultValue: "${env.PROJECT}", description: 'What job was the first to build?')
         string(name: 'TARGET_BRANCH', defaultValue: "${env.CHANGE_TARGET}", description: 'Target branch if PR')
+        string(name: 'SOURCE_BRANCH', defaultValue: "${env.CHANGE_BRANCH}", description: 'Source branch if PR')
     }
 
     stages {
@@ -28,6 +29,7 @@ pipeline {
                 echo "ORIGINAL_JOB: ${env.ORIGINAL_JOB}"
                 echo "BUILD_TO_TRIGGER: ${env.BUILD_TO_TRIGGER}"
                 echo "TARGET_BRANCH: ${env.TARGET_BRANCH}"
+                echo "SOURCE_BRANCH: ${env.SOURCE_BRANCH}"
             }
         }
 
@@ -99,6 +101,8 @@ pipeline {
             steps {
                 script {
                     if ( env.ORIGINAL_BRANCH ==~ "PR-[0-9]+" ) {
+                        def empty_if_no_branch = sh(script: "git ls-remote --heads git@github.com:kb-dk/${env.BUILD_TO_TRIGGER}.git | grep 'refs/heads/${env.SOURCE_BRANCH}'", returnStdout:true).trim()
+                        echo "Test String: ${empty_if_no_branch}"
                         echo "Triggering: DS-GitHub/${env.BUILD_TO_TRIGGER}/${env.TARGET_BRANCH}"
 
                         def result = build job: "DS-GitHub/${env.BUILD_TO_TRIGGER}/${env.TARGET_BRANCH}",
