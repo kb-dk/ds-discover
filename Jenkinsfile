@@ -107,7 +107,7 @@ pipeline {
                             branch_to_use = "${env.TARGET_BRANCH}"
                         }
                         else {
-                            branch_to_use = "${env.TARGET_BRANCH}"
+                            branch_to_use = "${env.SOURCE_BRANCH}"
                         }
                         echo "Triggering: DS-GitHub/${env.BUILD_TO_TRIGGER}/${branch_to_use}"
                         def result = build job: "DS-GitHub/${env.BUILD_TO_TRIGGER}/${branch_to_use}",
