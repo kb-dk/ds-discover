@@ -92,7 +92,7 @@ pipeline {
             }
         }
 
-        stage('Trigger Image Build') {
+        stage('Trigger Image Build ') {
             when {
                 expression {
                     currentBuild.currentResult == "SUCCESS" && env.ORIGINAL_BRANCH ==~ "master|release_v[0-9]+|PR-[0-9]+"
