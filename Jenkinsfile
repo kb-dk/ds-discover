@@ -75,10 +75,23 @@ pipeline {
 
         stage('Build') {
             steps {
-                script {
+                withMaven(traceability: true) {
                     // Execute Maven build
                     sh "mvn -s ${env.MVN_SETTINGS} clean package"
                 }
+            }
+        }
+
+        stage('Analyze build results') {
+            steps {
+                recordIssues(aggregatingResults: true,
+                        tools: [java(),
+                                javaDoc(),
+                                mavenConsole(),
+                                taskScanner(highTags: 'FIXME',
+                                        normalTags: 'TODO',
+                                        includePattern: '**/*.java',
+                                        excludePattern: 'target/**/*')])
             }
         }
 
@@ -90,7 +103,9 @@ pipeline {
                 }
             }
             steps {
-                sh "mvn -s ${env.MVN_SETTINGS} clean deploy -DskipTests=true"
+                withMaven(traceability: true){
+                    sh "mvn -s ${env.MVN_SETTINGS} clean deploy -DskipTests=true"
+                }
             }
         }
 
