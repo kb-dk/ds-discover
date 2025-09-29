@@ -16,7 +16,7 @@ pipeline {
 
     parameters {
         string(name: 'ORIGINAL_BRANCH', defaultValue: "${env.BRANCH_NAME}", description: 'Branch of first job to run, will also be PI_ID for a PR')
-        string(name: 'ORIGINAL_JOB', defaultValue: "${env.PROJECT}", description: 'What job was the first to build?')
+        string(name: 'ORIGINAL_JOB', defaultValue: "ds-discover", description: 'What job was the first to build?')
         string(name: 'TARGET_BRANCH', defaultValue: "${env.CHANGE_TARGET}", description: 'Target branch if PR')
         string(name: 'SOURCE_BRANCH', defaultValue: "${env.CHANGE_BRANCH}", description: 'Source branch if PR')
     }
