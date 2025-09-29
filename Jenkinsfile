@@ -3,6 +3,10 @@ pipeline {
         label 'DS agent'
     }
 
+    options {
+        disableConcurrentBuilds()
+    }
+
     environment {
         MVN_SETTINGS = '/etc/m2/settings.xml' //This should be changed in Jenkins config for the DS agent
         PROJECT = 'ds-discover'
