@@ -60,17 +60,26 @@ pipeline {
             steps {
                 script {
                     switch (params.ORIGINAL_JOB) {
+                        case ['ds-shared']:
+                            sh "mvn -s ${env.MVN_SETTINGS} versions:use-dep-version -Dincludes=dk.kb.dsshared:* -DdepVersion=${params.ORIGINAL_BRANCH}-${params.ORIGINAL_JOB}-ds-shared-SNAPSHOT -DforceVersion=true"
+                            sh "mvn -s ${env.MVN_SETTINGS} versions:use-dep-version -Dincludes=dk.kb.license:* -DdepVersion=${params.ORIGINAL_BRANCH}-${params.ORIGINAL_JOB}-ds-license-SNAPSHOT -DforceVersion=true"
+                            sh "mvn -s ${env.MVN_SETTINGS} versions:use-dep-version -Dincludes=dk.kb.present:* -DdepVersion=${params.ORIGINAL_BRANCH}-${params.ORIGINAL_JOB}-ds-present-SNAPSHOT -DforceVersion=true"
+
+                            echo "Changing MVN dependency ds-shared to: ${params.ORIGINAL_BRANCH}-${params.ORIGINAL_JOB}-ds-shared-SNAPSHOT"
+                            echo "Changing MVN dependency ds-license to: ${params.ORIGINAL_BRANCH}-${params.ORIGINAL_JOB}-ds-license-SNAPSHOT"
+                            echo "Changing MVN dependency ds-present to: ${params.ORIGINAL_BRANCH}-${params.ORIGINAL_JOB}-ds-present-SNAPSHOT"
+                            break
                         case ['ds-storage', 'ds-license']:
                             sh "mvn -s ${env.MVN_SETTINGS} versions:use-dep-version -Dincludes=dk.kb.license:* -DdepVersion=${params.ORIGINAL_BRANCH}-${params.ORIGINAL_JOB}-ds-license-SNAPSHOT -DforceVersion=true"
                             sh "mvn -s ${env.MVN_SETTINGS} versions:use-dep-version -Dincludes=dk.kb.present:* -DdepVersion=${params.ORIGINAL_BRANCH}-${params.ORIGINAL_JOB}-ds-present-SNAPSHOT -DforceVersion=true"
 
-                            echo "Changing MVN dependency license to: ${params.ORIGINAL_BRANCH}-${params.ORIGINAL_JOB}-ds-license-SNAPSHOT"
-                            echo "Changing MVN dependency present to: ${params.ORIGINAL_BRANCH}-${params.ORIGINAL_JOB}-ds-present-SNAPSHOT"
+                            echo "Changing MVN dependency ds-license to: ${params.ORIGINAL_BRANCH}-${params.ORIGINAL_JOB}-ds-license-SNAPSHOT"
+                            echo "Changing MVN dependency ds-present to: ${params.ORIGINAL_BRANCH}-${params.ORIGINAL_JOB}-ds-present-SNAPSHOT"
                             break
                         case ['ds-present']:
-                            sh "mvn -s ${env.MVN_SETTINGS} versions:use-dep-version -Dincludes=dk.kb.present:* -DdepVersion=${params.ORIGINAL_BRANCH}-${params.ORIGINAL_JOB}-${params.ORIGINAL_JOB}-SNAPSHOT -DforceVersion=true"
+                            sh "mvn -s ${env.MVN_SETTINGS} versions:use-dep-version -Dincludes=dk.kb.present:* -DdepVersion=${params.ORIGINAL_BRANCH}-${params.ORIGINAL_JOB}-ds-present-SNAPSHOT -DforceVersion=true"
 
-                            echo "Changing MVN dependency present to: ${params.ORIGINAL_BRANCH}-${params.ORIGINAL_JOB}-${params.ORIGINAL_JOB}-SNAPSHOT"
+                            echo "Changing MVN dependency ds-present to: ${params.ORIGINAL_BRANCH}-${params.ORIGINAL_JOB}-ds-present-SNAPSHOT"
                             break
                     }
                 }
@@ -119,7 +128,7 @@ pipeline {
             }
         }
 
-        stage('Trigger Image Build') {
+        stage('Trigger ds-image Build') {
             when {
                 expression {
                     currentBuild.currentResult == "SUCCESS" && params.ORIGINAL_BRANCH ==~ "master|release_v[0-9]+|PR-[0-9]+"
