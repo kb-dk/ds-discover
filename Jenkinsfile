@@ -88,14 +88,20 @@ pipeline {
 
         stage('Analyze build results') {
             steps {
-                recordIssues(aggregatingResults: true,
-                        tools: [java(),
-                                javaDoc(),
-                                mavenConsole(),
-                                taskScanner(highTags: 'FIXME',
-                                        normalTags: 'TODO',
-                                        includePattern: '**/*.java',
-                                        excludePattern: 'target/**/*')])
+                recordIssues(
+                    aggregatingResults: true,
+                    tools: [
+                        java(),
+                        javaDoc(),
+                        mavenConsole(),
+                        taskScanner(
+                            highTags: 'FIXME',
+                            normalTags: 'TODO',
+                            includePattern: '**/*.java',
+                            excludePattern: 'target/**/*'
+                        )
+                    ]
+                )
             }
         }
 
@@ -107,7 +113,7 @@ pipeline {
                 }
             }
             steps {
-                withMaven(traceability: true){
+                withMaven(traceability: true) {
                     sh "mvn -s ${env.MVN_SETTINGS} clean deploy -DskipTests=true"
                 }
             }
@@ -122,27 +128,27 @@ pipeline {
             steps {
                 script {
                     if (params.ORIGINAL_BRANCH ==~ "PR-[0-9]+") {
+                        // Check the next job to trigger, if there is a branch with same name as the source branch (if a task has involved multiple repositories)
                         def EMPTY_IF_NO_BRANCH = sh(script: "git ls-remote --heads https://github.com/kb-dk/${env.BUILD_TO_TRIGGER}.git | grep 'refs/heads/${params.SOURCE_BRANCH}' || echo empty", returnStdout: true).trim()
-                        echo "Test String: ${EMPTY_IF_NO_BRANCH}"
+                        echo "EMPTY_IF_NO_BRANCH: ${EMPTY_IF_NO_BRANCH}"
 
                         if ("${EMPTY_IF_NO_BRANCH}" == "empty") {
                             BRANCH_TO_USE = "${params.TARGET_BRANCH}"
-                        }
-                        else {
+                        } else {
                             BRANCH_TO_USE = "${params.SOURCE_BRANCH}"
                         }
 
                         echo "Triggering: DS-GitHub/${env.BUILD_TO_TRIGGER}/${BRANCH_TO_USE}"
+                        
                         build job: "DS-GitHub/${env.BUILD_TO_TRIGGER}/${BRANCH_TO_USE}",
                             parameters: [
                                 string(name: 'ORIGINAL_BRANCH', value: params.ORIGINAL_BRANCH),
                                 string(name: 'ORIGINAL_JOB', value: params.ORIGINAL_JOB),
-                                string(name: 'TARGET_BRANCH', value: params.TARGET_BRANCH)
+                                string(name: 'TARGET_BRANCH', value: params.TARGET_BRANCH),
+                                string(name: 'SOURCE_BRANCH', value: params.SOURCE_BRANCH)
                             ],
                             wait: true // Wait for the pipeline to finish
-                    }
-
-                    else if (params.ORIGINAL_BRANCH ==~ "master|release_v[0-9]+") {
+                    } else if (params.ORIGINAL_BRANCH ==~ "master|release_v[0-9]+") {
                         echo "Triggering: DS-GitHub/${env.BUILD_TO_TRIGGER}/${params.ORIGINAL_BRANCH}"
 
                         build job: "DS-GitHub/${env.BUILD_TO_TRIGGER}/${params.ORIGINAL_BRANCH}",
