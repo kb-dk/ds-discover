@@ -6,7 +6,7 @@
     <parent>
         <groupId>dk.kb.discover</groupId>
         <artifactId>ds-discover-parent</artifactId>
-        <version>3.0.1-SNAPSHOT</version>
+        <version>3.0.3-SNAPSHOT</version>
     </parent>
 
     <artifactId>ds-discover-web</artifactId>
@@ -24,13 +24,13 @@
         <dependency>
             <groupId>dk.kb.license</groupId>
             <artifactId>ds-license-api</artifactId>
-            <version>3.0.1-SNAPSHOT</version>
+            <version>3.0.4-SNAPSHOT</version>
         </dependency>
 
         <dependency>
             <groupId>dk.kb.present</groupId>
             <artifactId>ds-present-api</artifactId>
-            <version>3.0.1-SNAPSHOT</version>
+            <version>3.0.6-SNAPSHOT</version>
         </dependency>
     </dependencies>
 
