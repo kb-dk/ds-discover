@@ -15,6 +15,7 @@
 package dk.kb.discover;
 
 import dk.kb.discover.config.ServiceConfig;
+import dk.kb.discover.util.solrshield.SolrShield;
 import dk.kb.util.webservice.exception.NotFoundServiceException;
 import dk.kb.util.yaml.YAML;
 import org.slf4j.Logger;
@@ -24,6 +25,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Singleton. Sets up {@link SolrService}s based on config and provides lookup of the services.
@@ -37,9 +39,12 @@ public class SolrManager implements ServiceConfig.Observer {
     private static final String SOLR_SERVER_KEY = ".server";
     private static final String SOLR_PATH_KEY = ".path";
     private static final String SOLR_PATH_DEFAULT = "solr";
+    private static final String SOLR_SHIELD_KEY = ".shield";
 
     private static final SolrManager instance = new SolrManager();
     private final Map<String, SolrService> solrs = new HashMap<>();
+    private final Map<String, String> shieldPaths = new HashMap<>();
+    private final Map<String, Optional<SolrShield>> shields = new HashMap<>();
 
     public SolrManager() {
         log.info("Creating SolrManager");
@@ -66,6 +71,8 @@ public class SolrManager implements ServiceConfig.Observer {
 
         solrs.values().forEach(SolrService::shutdown);
         solrs.clear();
+        shieldPaths.clear();
+        shields.clear();
 
         solrConfs.stream()
                 .map(this::createSolrService)
@@ -117,6 +124,48 @@ public class SolrManager implements ServiceConfig.Observer {
 
         String path = solrConf.getString(SOLR_PATH_KEY, SOLR_PATH_DEFAULT);
 
+        String shieldPath = solrConf.getString(SOLR_SHIELD_KEY, null);
+        if (shieldPath != null) {
+            shieldPaths.put(id, shieldPath);
+            log.info("Registered shield config path for collection '{}': {}", id, shieldPath);
+        }
+
         return new SolrService(id, server, path, solrCollection);
+    }
+
+    /**
+     * Get the {@link SolrShield} for the given collection, creating it lazily on first access.
+     * @param collection the abstract collection ID.
+     * @return the SolrShield for the collection, or empty if no shield is configured.
+     */
+    public static synchronized Optional<SolrShield> getShield(String collection) {
+        return instance.getShieldInstance(collection);
+    }
+
+    private Optional<SolrShield> getShieldInstance(String collection) {
+        if (shields.containsKey(collection)) {
+            return shields.get(collection);
+        }
+
+        String shieldPath = shieldPaths.get(collection);
+        if (shieldPath == null) {
+            log.debug("No shield configured for collection '{}'", collection);
+            shields.put(collection, Optional.empty());
+            return Optional.empty();
+        }
+
+        try {
+            log.info("Loading SolrShield for collection '{}' from '{}'", collection, shieldPath);
+            YAML shieldConf = YAML.resolveLayeredConfigs(shieldPath);
+            SolrShield shield = new SolrShield(shieldConf);
+            Optional<SolrShield> result = Optional.of(shield);
+            shields.put(collection, result);
+            return result;
+        } catch (Exception e) {
+            log.error("Failed to load SolrShield for collection '{}' from '{}'. " +
+                      "No shield will be active for this collection.", collection, shieldPath, e);
+            shields.put(collection, Optional.empty());
+            return Optional.empty();
+        }
     }
 }
