@@ -40,7 +40,7 @@ class SolrShieldTest {
 
     @Test
     void testDeepCopySearch() {
-        SearchComponent search = SolrShield.profile.search;
+        SearchComponent search = SolrShield.getInstance().profile.search;
         assertSearchParamSame(search, "origo");
         assertFalse(search.isCopy, "Origo Search should initially not be a copy");
 
@@ -65,7 +65,7 @@ class SolrShieldTest {
 
     @Test
     void testDeepCopySearchApply() {
-        SearchComponent search = SolrShield.profile.search;
+        SearchComponent search = SolrShield.getInstance().profile.search;
         assertFalse(search.isCopy, "Origo Search should initially not be a copy");
 
         Map<String, String[]> request = Map.of(
@@ -74,7 +74,7 @@ class SolrShieldTest {
         );
         SolrShield.evaluate(request.entrySet(), 1000.0);
 
-        assertSame(search, SolrShield.profile.search, "The base search should not have been replaced");
+        assertSame(search, SolrShield.getInstance().profile.search, "The base search should not have been replaced");
         assertFalse(search.isCopy, "The origo Search should still not be a copy itself after test");
     }
 
@@ -522,11 +522,13 @@ class SolrShieldTest {
 
     @Test
     void multipleReasonsCollected() {
-        // Denied field in fl + weight exceeded — should collect multiple reasons
+        // Denied field in fl + facet.limit exceeds maxValue — should collect reasons from both components
         Map<String, String[]> request = Map.of(
                 "q", new String[]{"*:*"},
-                "fl", new String[]{"text_shingles"},  // denied field
-                "rows", new String[]{"6000"}           // exceeds maxValue 5000
+                "fl", new String[]{"text_shingles"},   // denied field in search component
+                "facet", new String[]{"true"},
+                "facet.field", new String[]{"catalog"},
+                "facet.limit", new String[]{"50000"}   // exceeds maxValue in facet component
         );
         Response response = SolrShield.evaluate(request.entrySet(), Double.MAX_VALUE);
         assertFalse(response.allowed);
