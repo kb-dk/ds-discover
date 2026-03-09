@@ -6,6 +6,8 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import dk.kb.util.yaml.YAML;
+
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Map;
@@ -168,6 +170,390 @@ class SolrShieldTest {
                 "Request " + toString(request) + " should not be allowed. Response: " + response);
         assertTrue(response.reasons.toString().contains("is larger than maxValue"),
                 "Response should contain clause stating that facet.limit is > maxValue. Response: " + response);
+    }
+
+    // --- Unlisted / unknown params ---
+
+    @Test
+    void unknownParamRejected() {
+        Map<String, String[]> request = Map.of(
+                "q", new String[]{"*:*"},
+                "fl", new String[]{"id"},
+                "bogusParam", new String[]{"value"}
+        );
+        Response response = SolrShield.evaluate(request.entrySet(), 100000.0);
+        assertFalse(response.allowed,
+                "Request with unknown param should be rejected (unlistedParams.allowed=false)");
+        assertTrue(response.reasons.toString().contains("bogusParam"),
+                "Reason should mention the unknown param 'bogusParam'");
+    }
+
+    @Test
+    void extraAllowedParameterAccepted() {
+        // queryUUID is in solr.extraAllowedParameters and should bypass shield
+        Map<String, String[]> request = Map.of(
+                "q", new String[]{"*:*"},
+                "fl", new String[]{"id"},
+                "queryUUID", new String[]{"abc-123"}
+        );
+        Response response = SolrShield.evaluate(request.entrySet(), 100000.0);
+        assertTrue(response.allowed,
+                "Request with extraAllowedParameter 'queryUUID' should be accepted but got reasons: " +
+                        response.reasons);
+    }
+
+    // --- Explicitly denied param ---
+
+    @Test
+    void defTypeDenied() {
+        Map<String, String[]> request = Map.of(
+                "q", new String[]{"*:*"},
+                "fl", new String[]{"id"},
+                "defType", new String[]{"edismax"}
+        );
+        Response response = SolrShield.evaluate(request.entrySet(), 100000.0);
+        assertFalse(response.allowed,
+                "Request with defType should be rejected (allowed=false in config)");
+        assertTrue(response.reasons.toString().contains("defType"),
+                "Reason should mention 'defType'");
+    }
+
+    // --- Disabled shield ---
+
+    @Test
+    void disabledShieldAllowsEverything() {
+        // Temporarily disable the shield by resetting config with enabled=false
+        YAML disabledConfig = new YAML();
+        // Build a minimal config that disables the shield
+        YAML originalConf = ServiceConfig.getConfig().getSubMap("solr.shield");
+
+        try {
+            // Create a modified config with enabled=false
+            YAML modifiedConf = new YAML(originalConf);
+            modifiedConf.put("enabled", false);
+            SolrShield.setConfig(modifiedConf);
+
+            // A request that would normally be rejected (unknown param)
+            Map<String, String[]> request = Map.of(
+                    "q", new String[]{"*:*"},
+                    "fl", new String[]{"id"},
+                    "bogusParam", new String[]{"value"}
+            );
+            Response response = SolrShield.evaluate(request.entrySet(), 100000.0);
+            assertTrue(response.allowed,
+                    "Disabled shield should allow all requests, even with unknown params");
+        } finally {
+            // Restore original config — must explicitly set enabled=true since
+            // the original config may not have the key, and setConfig defaults to current value
+            YAML restoreConf = new YAML(originalConf);
+            restoreConf.put("enabled", true);
+            SolrShield.setConfig(restoreConf);
+        }
+    }
+
+    // --- Filter query (fq) ---
+
+    @Test
+    void filterQueryAccepted() {
+        Map<String, String[]> request = Map.of(
+                "q", new String[]{"*:*"},
+                "fl", new String[]{"id"},
+                "fq", new String[]{"genre:drama"}
+        );
+        Response response = SolrShield.evaluate(request.entrySet(), 100000.0);
+        assertTrue(response.allowed,
+                "Request with fq should be accepted but got reasons: " + response.reasons);
+    }
+
+    @Test
+    void filterQueryAddsWeight() {
+        Map<String, String[]> requestWithoutFq = Map.of(
+                "q", new String[]{"*:*"},
+                "fl", new String[]{"id"}
+        );
+        Response responseWithout = SolrShield.evaluate(requestWithoutFq.entrySet(), 100000.0);
+
+        Map<String, String[]> requestWithFq = Map.of(
+                "q", new String[]{"*:*"},
+                "fl", new String[]{"id"},
+                "fq", new String[]{"genre:drama"}
+        );
+        Response responseWith = SolrShield.evaluate(requestWithFq.entrySet(), 100000.0);
+
+        assertTrue(responseWith.weight > responseWithout.weight,
+                "Adding fq should increase weight. Without: " + responseWithout.weight +
+                        ", with: " + responseWith.weight);
+    }
+
+    // --- rows maxValue ---
+
+    @Test
+    void rowsExceedingMaxValueRejected() {
+        Map<String, String[]> request = Map.of(
+                "q", new String[]{"*:*"},
+                "fl", new String[]{"id"},
+                "rows", new String[]{"6000"} // maxValue is 5000
+        );
+        Response response = SolrShield.evaluate(request.entrySet(), Double.MAX_VALUE);
+        assertFalse(response.allowed,
+                "Request with rows exceeding maxValue should be rejected");
+        assertTrue(response.reasons.toString().contains("rows"),
+                "Reason should mention 'rows'");
+        assertTrue(response.reasons.toString().contains("maxValue"),
+                "Reason should mention 'maxValue'");
+    }
+
+    @Test
+    void rowsWithinMaxValueAccepted() {
+        Map<String, String[]> request = Map.of(
+                "q", new String[]{"*:*"},
+                "fl", new String[]{"id"},
+                "rows", new String[]{"100"}
+        );
+        Response response = SolrShield.evaluate(request.entrySet(), 100000.0);
+        assertTrue(response.allowed,
+                "Request with rows=100 should be accepted but got reasons: " + response.reasons);
+    }
+
+    // --- start maxValue ---
+
+    @Test
+    void startExceedingMaxValueRejected() {
+        Map<String, String[]> request = Map.of(
+                "q", new String[]{"*:*"},
+                "fl", new String[]{"id"},
+                "start", new String[]{"1500"} // maxValue is 1000
+        );
+        Response response = SolrShield.evaluate(request.entrySet(), Double.MAX_VALUE);
+        assertFalse(response.allowed,
+                "Request with start exceeding maxValue should be rejected");
+        assertTrue(response.reasons.toString().contains("start"),
+                "Reason should mention 'start'");
+    }
+
+    // --- q maxChars ---
+
+    @Test
+    void queryExceedingMaxCharsRejected() {
+        // maxChars for q is 1000
+        String longQuery = "a".repeat(1001);
+        Map<String, String[]> request = Map.of(
+                "q", new String[]{longQuery},
+                "fl", new String[]{"id"}
+        );
+        Response response = SolrShield.evaluate(request.entrySet(), Double.MAX_VALUE);
+        assertFalse(response.allowed,
+                "Request with q exceeding maxChars should be rejected");
+        assertTrue(response.reasons.toString().contains("maxChars"),
+                "Reason should mention 'maxChars'");
+    }
+
+    @Test
+    void queryWithinMaxCharsAccepted() {
+        String query = "a".repeat(500);
+        Map<String, String[]> request = Map.of(
+                "q", new String[]{query},
+                "fl", new String[]{"id"}
+        );
+        Response response = SolrShield.evaluate(request.entrySet(), 100000.0);
+        assertTrue(response.allowed,
+                "Request with q within maxChars should be accepted but got reasons: " + response.reasons);
+    }
+
+    // --- Weight calculation sanity checks ---
+
+    @Test
+    void weightCalculationSanity() {
+        // Minimal request: q + fl with a single lightweight field
+        Map<String, String[]> request = Map.of(
+                "q", new String[]{"test"},
+                "fl", new String[]{"id"}
+        );
+        Response response = SolrShield.evaluate(request.entrySet(), 100000.0);
+        assertTrue(response.allowed, "Simple request should be allowed");
+
+        // Weight should be: profile.weightConstant(100) + search.weightConstant(100) +
+        //                   q.weightConstant(10) + fl(weightFactor*fieldWeight) + rows(default) + facet(default)
+        // Exact value depends on defaults, but should be deterministic
+        double expectedMinWeight = 100 + 100 + 10; // At minimum: profile + search + q constants
+        assertTrue(response.weight >= expectedMinWeight,
+                "Weight should be at least " + expectedMinWeight + " but was " + response.weight);
+
+        // Run the same request again — weight must be identical (prototype not mutated)
+        Response response2 = SolrShield.evaluate(request.entrySet(), 100000.0);
+        assertEquals(response.weight, response2.weight,
+                "Identical requests should produce identical weights (prototype integrity)");
+    }
+
+    @Test
+    void moreRowsIncreasesWeight() {
+        Map<String, String[]> request10 = Map.of(
+                "q", new String[]{"*:*"},
+                "fl", new String[]{"title"},
+                "rows", new String[]{"10"}
+        );
+        Map<String, String[]> request100 = Map.of(
+                "q", new String[]{"*:*"},
+                "fl", new String[]{"title"},
+                "rows", new String[]{"100"}
+        );
+        Response r10 = SolrShield.evaluate(request10.entrySet(), 100000.0);
+        Response r100 = SolrShield.evaluate(request100.entrySet(), 100000.0);
+        assertTrue(r100.weight > r10.weight,
+                "More rows should increase weight. rows=10: " + r10.weight + ", rows=100: " + r100.weight);
+    }
+
+    @Test
+    void heavierFieldsIncreaseWeight() {
+        // id has weight 10, text has weight 200
+        Map<String, String[]> requestLight = Map.of(
+                "q", new String[]{"*:*"},
+                "fl", new String[]{"id"}
+        );
+        Map<String, String[]> requestHeavy = Map.of(
+                "q", new String[]{"*:*"},
+                "fl", new String[]{"text"}
+        );
+        Response rLight = SolrShield.evaluate(requestLight.entrySet(), 100000.0);
+        Response rHeavy = SolrShield.evaluate(requestHeavy.entrySet(), 100000.0);
+        assertTrue(rHeavy.weight > rLight.weight,
+                "Heavier field should increase weight. id: " + rLight.weight + ", text: " + rHeavy.weight);
+    }
+
+    // --- Facet field whitelist ---
+
+    @Test
+    void facetFieldNotInWhitelistRejected() {
+        // facet.field has allowedFields whitelist; 'text' is NOT in it
+        Map<String, String[]> request = Map.of(
+                "q", new String[]{"*:*"},
+                "fl", new String[]{"id"},
+                "facet", new String[]{"true"},
+                "facet.field", new String[]{"text"}
+        );
+        Response response = SolrShield.evaluate(request.entrySet(), Double.MAX_VALUE);
+        assertFalse(response.allowed,
+                "Facet on field not in allowedFields should be rejected");
+        assertTrue(response.reasons.toString().contains("allowed list"),
+                "Reason should mention the allowed list. Reasons: " + response.reasons);
+    }
+
+    @Test
+    void facetFieldInWhitelistAccepted() {
+        // 'catalog' is in the allowedFields list
+        Map<String, String[]> request = Map.of(
+                "q", new String[]{"*:*"},
+                "fl", new String[]{"id"},
+                "facet", new String[]{"true"},
+                "facet.field", new String[]{"catalog"}
+        );
+        Response response = SolrShield.evaluate(request.entrySet(), 100000.0);
+        assertTrue(response.allowed,
+                "Facet on field in allowedFields should be accepted but got reasons: " + response.reasons);
+    }
+
+    // --- evaluate(Map) overload ---
+
+    @Test
+    void evaluateMapOverload() {
+        Map<String, String[]> request = Map.of(
+                "q", new String[]{"*:*"},
+                "fl", new String[]{"id"}
+        );
+        // evaluate(Map) uses defaultMaxWeight from config (1000)
+        Response response = SolrShield.evaluate(request);
+        assertTrue(response.allowed,
+                "evaluate(Map) should work and accept simple request. Reasons: " + response.reasons);
+        assertEquals(1000.0, response.maxWeight,
+                "evaluate(Map) should use defaultMaxWeight from config");
+    }
+
+    // --- Default maxWeight enforcement ---
+
+    @Test
+    void defaultMaxWeightEnforced() {
+        // defaultMaxWeight is 1000 in test config
+        // Request with heavy fields + many rows should exceed it
+        Map<String, String[]> request = Map.of(
+                "q", new String[]{"*:*"},
+                "fl", new String[]{"text", "freetext", "abstract"},
+                "rows", new String[]{"500"}
+        );
+        Response response = SolrShield.evaluate(request);
+        assertFalse(response.allowed,
+                "Heavy request should exceed defaultMaxWeight of 1000");
+        assertTrue(response.reasons.toString().contains("Weight exceeded"),
+                "Reason should mention weight exceeded");
+    }
+
+    // --- facet.query denied ---
+
+    @Test
+    void facetQueryDenied() {
+        Map<String, String[]> request = Map.of(
+                "q", new String[]{"*:*"},
+                "fl", new String[]{"id"},
+                "facet", new String[]{"true"},
+                "facet.query", new String[]{"genre:drama"}
+        );
+        Response response = SolrShield.evaluate(request.entrySet(), Double.MAX_VALUE);
+        assertFalse(response.allowed,
+                "facet.query should be rejected (allowed=false in config)");
+        assertTrue(response.reasons.toString().contains("facet.query"),
+                "Reason should mention 'facet.query'");
+    }
+
+    // --- fl denied field (blacklist) ---
+
+    @Test
+    void flDeniedField() {
+        Map<String, String[]> request = Map.of(
+                "q", new String[]{"*:*"},
+                "fl", new String[]{"text_shingles"}
+        );
+        Response response = SolrShield.evaluate(request.entrySet(), Double.MAX_VALUE);
+        assertFalse(response.allowed,
+                "Requesting denied field 'text_shingles' in fl should be rejected");
+        assertTrue(response.reasons.toString().contains("denied"),
+                "Reason should mention denied list");
+    }
+
+    // --- Multiple reasons collected ---
+
+    @Test
+    void multipleReasonsCollected() {
+        // Denied field in fl + weight exceeded — should collect multiple reasons
+        Map<String, String[]> request = Map.of(
+                "q", new String[]{"*:*"},
+                "fl", new String[]{"text_shingles"},  // denied field
+                "rows", new String[]{"6000"}           // exceeds maxValue 5000
+        );
+        Response response = SolrShield.evaluate(request.entrySet(), Double.MAX_VALUE);
+        assertFalse(response.allowed);
+        assertTrue(response.reasons.size() >= 2,
+                "Should collect multiple failure reasons but got: " + response.reasons);
+    }
+
+    // --- Debug weight ---
+
+    @Test
+    void debugAddsSignificantWeight() {
+        Map<String, String[]> requestNoDebug = Map.of(
+                "q", new String[]{"*:*"},
+                "fl", new String[]{"id"},
+                "rows", new String[]{"1"}
+        );
+        Map<String, String[]> requestDebug = Map.of(
+                "q", new String[]{"*:*"},
+                "fl", new String[]{"id"},
+                "rows", new String[]{"1"},
+                "debug", new String[]{"true"}
+        );
+        Response rNoDebug = SolrShield.evaluate(requestNoDebug.entrySet(), 100000.0);
+        Response rDebug = SolrShield.evaluate(requestDebug.entrySet(), 100000.0);
+        assertTrue(rDebug.weight > rNoDebug.weight + 400,
+                "Debug should add at least 500 weight (weightConstant=500). " +
+                        "Without: " + rNoDebug.weight + ", with: " + rDebug.weight);
     }
 
     private String toString(Map<String, String[]> map) {
