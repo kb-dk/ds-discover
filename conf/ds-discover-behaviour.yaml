@@ -84,7 +84,9 @@ solr:
         # The Solr collection ID
         # Mandatory. Typically the same as the abstract collection name
         collection: 'ds'
-        # TODO: Default params
+        # Path to standalone SolrShield config for this collection
+        # Optional. If not set, no shield is active for the collection
+        shield: 'ds-solrshield.yaml'
         #
         #
         #
