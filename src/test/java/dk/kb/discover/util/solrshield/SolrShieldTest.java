@@ -1,5 +1,6 @@
 package dk.kb.discover.util.solrshield;
 
+import dk.kb.discover.SolrManager;
 import dk.kb.discover.config.ServiceConfig;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -9,8 +10,7 @@ import org.slf4j.LoggerFactory;
 import dk.kb.util.yaml.YAML;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -556,6 +556,209 @@ class SolrShieldTest {
         assertTrue(rDebug.weight > rNoDebug.weight + 400,
                 "Debug should add at least 500 weight (weightConstant=500). " +
                         "Without: " + rNoDebug.weight + ", with: " + rDebug.weight);
+    }
+
+    // --- Per-collection shield tests ---
+
+    /**
+     * Helper to build a SolrManager config YAML with collections pointing to shield paths.
+     */
+    private static YAML buildCollectionConfig(Map<String, String> collectionShields) {
+        List<Map<String, Object>> collections = new ArrayList<>();
+        for (Map.Entry<String, String> entry : collectionShields.entrySet()) {
+            Map<String, Object> inner = new LinkedHashMap<>();
+            inner.put("server", "http://localhost:8983");
+            inner.put("collection", entry.getKey());
+            if (entry.getValue() != null) {
+                inner.put("shield", entry.getValue());
+            }
+            Map<String, Object> collEntry = new LinkedHashMap<>();
+            collEntry.put(entry.getKey(), inner);
+            collections.add(collEntry);
+        }
+        Map<String, Object> solr = new LinkedHashMap<>();
+        solr.put("collections", collections);
+        Map<String, Object> root = new LinkedHashMap<>();
+        root.put("solr", solr);
+        return new YAML(root);
+    }
+
+    @Test
+    void perCollectionShieldLoaded() {
+        YAML config = buildCollectionConfig(Map.of(
+                "permissive-coll", "solrshield-permissive.yaml",
+                "restrictive-coll", "solrshield-restrictive.yaml"
+        ));
+        SolrManager.getInstance().setConfig(config);
+
+        try {
+            Optional<SolrShield> permissive = SolrManager.getShield("permissive-coll");
+            Optional<SolrShield> restrictive = SolrManager.getShield("restrictive-coll");
+
+            assertTrue(permissive.isPresent(), "Permissive collection should have a shield");
+            assertTrue(restrictive.isPresent(), "Restrictive collection should have a shield");
+            assertNotSame(permissive.get(), restrictive.get(),
+                    "Different collections should have different shield instances");
+        } finally {
+            // Restore empty state so other tests aren't affected
+            SolrManager.getInstance().setConfig(buildCollectionConfig(Map.of()));
+        }
+    }
+
+    @Test
+    void noShieldForUnconfiguredCollection() {
+        // Use a LinkedHashMap so we can include a null value for the no-shield collection
+        Map<String, String> collections = new LinkedHashMap<>();
+        collections.put("permissive-coll", "solrshield-permissive.yaml");
+        collections.put("noshield-coll", null);
+        YAML config = buildCollectionConfig(collections);
+        SolrManager.getInstance().setConfig(config);
+
+        try {
+            Optional<SolrShield> noShield = SolrManager.getShield("noshield-coll");
+            assertTrue(noShield.isEmpty(), "Collection without shield config should return empty");
+        } finally {
+            SolrManager.getInstance().setConfig(buildCollectionConfig(Map.of()));
+        }
+    }
+
+    @Test
+    void permissiveShieldAllowsBasicQuery() {
+        YAML config = buildCollectionConfig(Map.of(
+                "permissive-coll", "solrshield-permissive.yaml"
+        ));
+        SolrManager.getInstance().setConfig(config);
+
+        try {
+            SolrShield shield = SolrManager.getShield("permissive-coll").orElseThrow();
+            Map<String, String[]> request = Map.of(
+                    "q", new String[]{"*:*"},
+                    "fl", new String[]{"title"},
+                    "rows", new String[]{"50"}
+            );
+            Response response = shield.evaluateRequest(request);
+            assertTrue(response.allowed,
+                    "Permissive shield should allow basic query. Reasons: " + response.reasons);
+        } finally {
+            SolrManager.getInstance().setConfig(buildCollectionConfig(Map.of()));
+        }
+    }
+
+    @Test
+    void restrictiveShieldRejectsBasicQuery() {
+        YAML config = buildCollectionConfig(Map.of(
+                "restrictive-coll", "solrshield-restrictive.yaml"
+        ));
+        SolrManager.getInstance().setConfig(config);
+
+        try {
+            SolrShield shield = SolrManager.getShield("restrictive-coll").orElseThrow();
+            // defaultMaxWeight=100, but weightConstant(100) + search.weightConstant(100) already exceeds it
+            Map<String, String[]> request = Map.of(
+                    "q", new String[]{"*:*"},
+                    "fl", new String[]{"id"}
+            );
+            Response response = shield.evaluateRequest(request);
+            assertFalse(response.allowed,
+                    "Restrictive shield (maxWeight=100) should reject even basic queries. " +
+                            "Weight: " + response.weight);
+        } finally {
+            SolrManager.getInstance().setConfig(buildCollectionConfig(Map.of()));
+        }
+    }
+
+    @Test
+    void sameQueryDifferentResultPerCollection() {
+        YAML config = buildCollectionConfig(Map.of(
+                "permissive-coll", "solrshield-permissive.yaml",
+                "restrictive-coll", "solrshield-restrictive.yaml"
+        ));
+        SolrManager.getInstance().setConfig(config);
+
+        try {
+            SolrShield permissive = SolrManager.getShield("permissive-coll").orElseThrow();
+            SolrShield restrictive = SolrManager.getShield("restrictive-coll").orElseThrow();
+
+            Map<String, String[]> request = Map.of(
+                    "q", new String[]{"*:*"},
+                    "fl", new String[]{"id"}
+            );
+
+            Response permissiveResponse = permissive.evaluateRequest(request);
+            Response restrictiveResponse = restrictive.evaluateRequest(request);
+
+            assertTrue(permissiveResponse.allowed,
+                    "Permissive shield should allow the query. Reasons: " + permissiveResponse.reasons);
+            assertFalse(restrictiveResponse.allowed,
+                    "Restrictive shield should reject the same query. Weight: " + restrictiveResponse.weight);
+        } finally {
+            SolrManager.getInstance().setConfig(buildCollectionConfig(Map.of()));
+        }
+    }
+
+    @Test
+    void restrictiveShieldDeniesTextField() {
+        YAML config = buildCollectionConfig(Map.of(
+                "restrictive-coll", "solrshield-restrictive.yaml"
+        ));
+        SolrManager.getInstance().setConfig(config);
+
+        try {
+            SolrShield shield = SolrManager.getShield("restrictive-coll").orElseThrow();
+            // 'text' is in deniedFields for the restrictive shield
+            Map<String, String[]> request = Map.of(
+                    "q", new String[]{"*:*"},
+                    "fl", new String[]{"text"}
+            );
+            Response response = shield.evaluateRequest(request.entrySet(), Double.MAX_VALUE);
+            assertFalse(response.allowed,
+                    "Restrictive shield should deny field 'text'. Reasons: " + response.reasons);
+            assertTrue(response.reasons.toString().contains("denied"),
+                    "Reason should mention denied list");
+        } finally {
+            SolrManager.getInstance().setConfig(buildCollectionConfig(Map.of()));
+        }
+    }
+
+    @Test
+    void permissiveShieldAllowsTextField() {
+        YAML config = buildCollectionConfig(Map.of(
+                "permissive-coll", "solrshield-permissive.yaml"
+        ));
+        SolrManager.getInstance().setConfig(config);
+
+        try {
+            SolrShield shield = SolrManager.getShield("permissive-coll").orElseThrow();
+            // 'text' is NOT denied in the permissive shield
+            Map<String, String[]> request = Map.of(
+                    "q", new String[]{"*:*"},
+                    "fl", new String[]{"text"}
+            );
+            Response response = shield.evaluateRequest(request.entrySet(), Double.MAX_VALUE);
+            assertTrue(response.allowed,
+                    "Permissive shield should allow field 'text'. Reasons: " + response.reasons);
+        } finally {
+            SolrManager.getInstance().setConfig(buildCollectionConfig(Map.of()));
+        }
+    }
+
+    @Test
+    void shieldCachedAcrossCalls() {
+        YAML config = buildCollectionConfig(Map.of(
+                "permissive-coll", "solrshield-permissive.yaml"
+        ));
+        SolrManager.getInstance().setConfig(config);
+
+        try {
+            Optional<SolrShield> first = SolrManager.getShield("permissive-coll");
+            Optional<SolrShield> second = SolrManager.getShield("permissive-coll");
+
+            assertTrue(first.isPresent());
+            assertSame(first.get(), second.get(),
+                    "getShield should return the same cached instance on repeated calls");
+        } finally {
+            SolrManager.getInstance().setConfig(buildCollectionConfig(Map.of()));
+        }
     }
 
     private String toString(Map<String, String[]> map) {

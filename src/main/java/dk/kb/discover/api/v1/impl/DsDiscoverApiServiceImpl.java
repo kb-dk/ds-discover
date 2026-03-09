@@ -19,6 +19,7 @@ import dk.kb.discover.util.LicenseUtil;
 import dk.kb.discover.util.solrshield.Response;
 import dk.kb.discover.util.solrshield.SolrShield;
 import dk.kb.util.webservice.exception.InternalServiceException;
+import java.util.Optional;
 
 import org.apache.cxf.interceptor.InInterceptors;
 import org.apache.cxf.jaxrs.ext.MessageContext;
@@ -305,11 +306,14 @@ public class DsDiscoverApiServiceImpl extends ImplBase implements DsDiscoverApi 
                 }
             }
 
-            Response shieldResponse = SolrShield.evaluate(httpServletRequest.getParameterMap());
-            log.debug("solrSearch(collection='{}', has weight={} with maximum weight allowed={} ",collection, shieldResponse.getWeight(), shieldResponse.getMaxWeight());
-            if (!shieldResponse.isAllowed()) {
-                throw new ServiceException("Call blocked by SolrShield: " + shieldResponse.getReasons(),
-                        javax.ws.rs.core.Response.Status.FORBIDDEN);
+            Optional<SolrShield> shield = SolrManager.getShield(collection);
+            if (shield.isPresent()) {
+                Response shieldResponse = shield.get().evaluateRequest(httpServletRequest.getParameterMap());
+                log.debug("solrSearch(collection='{}', has weight={} with maximum weight allowed={} ",collection, shieldResponse.getWeight(), shieldResponse.getMaxWeight());
+                if (!shieldResponse.isAllowed()) {
+                    throw new ServiceException("Call blocked by SolrShield: " + shieldResponse.getReasons(),
+                            javax.ws.rs.core.Response.Status.FORBIDDEN);
+                }
             }
 
             SolrService solr = SolrManager.getSolrService(collection);
