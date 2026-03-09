@@ -23,6 +23,16 @@ solr:
     # Ideally the max weight is taken from general application properties or derived per user group
     defaultMaxWeight: 5000
 
+    # Parameters that bypass shield validation entirely. These are application-level parameters
+    # that are not Solr-native and should not be evaluated by SolrShield.
+    passthroughParameters:
+      # queryUUID is returned to the frontend and used as session tracking.
+      - queryUUID
+      # Frontend uses facet.limit for timeline
+      - facet.limit
+      # Frontend is sorting on dates when showing results from "Tidsmaskinen"
+      - sort
+
     # Simply activating a call comes at a cost
     weightConstant: 100
 
