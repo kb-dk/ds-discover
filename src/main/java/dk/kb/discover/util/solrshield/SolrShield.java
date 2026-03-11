@@ -14,7 +14,6 @@
  */
 package dk.kb.discover.util.solrshield;
 
-import dk.kb.discover.config.ServiceConfig;
 import dk.kb.util.yaml.YAML;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,8 +28,7 @@ import java.util.*;
  * to be when issued against a Solr installation.
  * <p>
  * Each instance of SolrShield holds its own configuration and can be used independently, allowing per-collection
- * shield configurations. For backwards compatibility, static methods delegate to a shared singleton instance
- * loaded from the main application config.
+ * shield configurations.
  * <p>
  * The input for SolrShield is an {@code Iterable<Map.Entry<String, String[]>>}. This was chosen to align with
  * {@code SolrParams} / {@code SolrQuery} from SolrJ, in anticipation of a future switch to SolrJ and/or reuse of
@@ -41,17 +39,12 @@ import java.util.*;
 public class SolrShield {
     private static final Logger log = LoggerFactory.getLogger(SolrShield.class);
 
-    public static final String ROOT_KEY = "solr.shield";
     public static final String ENABLED_KEY = "enabled";
 
     /**
      * If no explicit maxWeight is given when testing, this weight is used.
      */
     public static final String MAX_WEIGHT_DEFAULT_KEY = "defaultMaxWeight";
-
-    // --- Static singleton for backwards compatibility ---
-
-    private static SolrShield instance = null;
 
     // --- Instance fields ---
 
@@ -69,9 +62,9 @@ public class SolrShield {
      */
     public SolrShield(YAML solrShieldConf) {
         this.conf = solrShieldConf;
-        if (conf.containsKey(ROOT_KEY)) {
-            log.warn("SolrShield constructor received a config which contains the key '{}'. This looks like an error: " +
-                    "The config should state SolrShield properties directly at root level", ROOT_KEY);
+        if (conf.containsKey("solr.shield")) {
+            log.warn("SolrShield constructor received a config which contains the key 'solr.shield'. This looks like an error: " +
+                    "The config should state SolrShield properties directly at root level");
         }
         enabled = conf.getBoolean(ENABLED_KEY, enabled);
         defaultMaxWeight = conf.getDouble(MAX_WEIGHT_DEFAULT_KEY, defaultMaxWeight);
@@ -150,64 +143,4 @@ public class SolrShield {
         return new Response(request, defaultMaxWeight, allowed, reasons, applied.getWeight());
     }
 
-    /**
-     * @return the singleton instance used by the static delegate methods, or null if not initialized.
-     */
-    static SolrShield getInstance() {
-        return instance;
-    }
-
-    // --- Static delegate methods (backwards compatibility) ---
-
-    /**
-     * Load the configuration for SolrShield from the main application config, if not already loaded.
-     * The configuration is expected at {@code solr.shield}.
-     */
-    public static void ensureConfig() {
-        log.debug("Load SolrShield configuration");
-        if (instance != null) {
-            return;
-        }
-        if (!ServiceConfig.getConfig().containsKey(ROOT_KEY)) {
-            log.warn("Warning: The sub-config for Solr Shield, expected at '{}', is unavailable. " +
-                    "No Solr calls will be allowed. Set 'solr.shield.enabled=false' in config to disable SolrShield",
-                    ROOT_KEY);
-            instance = new SolrShield(new YAML());
-            return;
-        }
-        instance = new SolrShield(ServiceConfig.getConfig().getSubMap(ROOT_KEY));
-    }
-
-    /**
-     * Set the configuration for the singleton SolrShield instance.
-     * This is kept as a separate method to enable other configuration sources than the default.
-     * <p>
-     * Note: This configuration must state the SolrShield properties directly.
-     *       It does not use the sub-configuration structure from {@link #ensureConfig()}.
-     * @param solrShieldConf the configuration for SolrShield.
-     */
-    static void setConfig(YAML solrShieldConf) {
-        instance = new SolrShield(solrShieldConf);
-    }
-
-    /**
-     * @see #evaluateRequest(Map)
-     */
-    public static Response evaluate(Map<String, String[]> request) {
-        return instance.evaluateRequest(request);
-    }
-
-    /**
-     * @see #evaluateRequest(Iterable)
-     */
-    public static Response evaluate(Iterable<Map.Entry<String, String[]>> request) {
-        return instance.evaluateRequest(request);
-    }
-
-    /**
-     * @see #evaluateRequest(Iterable, Double)
-     */
-    public static Response evaluate(Iterable<Map.Entry<String, String[]>> request, Double maxWeight) {
-        return instance.evaluateRequest(request, maxWeight);
-    }
 }
