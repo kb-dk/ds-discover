@@ -187,9 +187,9 @@ class SolrShieldTest {
         );
         Response response = shield.evaluateRequest(request.entrySet(), 100000.0);
         assertFalse(response.allowed,
-                "Request with unknown param should be rejected (unlistedParams.allowed=false)");
-        assertTrue(response.reasons.toString().contains("bogusParam"),
-                "Reason should mention the unknown param 'bogusParam'");
+                "Unlisted params not allowed but got [bogusParam=[value]]");
+        assertTrue(response.reasons.toString().contains("Unlisted params not allowed but got"),
+                "Reason should be 'Unlisted params not allowed but got [bogusParam=[value]]'");
     }
 
     @Test
@@ -206,10 +206,11 @@ class SolrShieldTest {
                         response.reasons);
     }
 
-    // --- Explicitly denied param ---
+    // --- Explicitly denied param overrides unlistedParams.allowed=true ---
 
     @Test
-    void defTypeDenied() {
+    void testDisallowedSolrParam() throws IOException {
+
         Map<String, String[]> request = Map.of(
                 "q", new String[]{"*:*"},
                 "fl", new String[]{"id"},
@@ -217,9 +218,9 @@ class SolrShieldTest {
         );
         Response response = shield.evaluateRequest(request.entrySet(), 100000.0);
         assertFalse(response.allowed,
-                "Request with defType should be rejected (allowed=false in config)");
-        assertTrue(response.reasons.toString().contains("defType"),
-                "Reason should mention 'defType'");
+                "Request with disallowed solr params should be rejected");
+        assertTrue(response.reasons.toString().contains("not allowed as the param itself is not allowed"),
+                "Reason should indicate the param itself is not allowed, got: " + response.reasons);
     }
 
 
@@ -234,6 +235,7 @@ class SolrShieldTest {
         Map<String, String[]> request = Map.of(
                 "q", new String[]{"*:*"},
                 "fl", new String[]{"id"},
+                "defType", new String[]{"edismax"},
                 "bogusParam", new String[]{"value"}
         );
         Response response = disabledShield.evaluateRequest(request.entrySet(), 100000.0);
