@@ -17,15 +17,6 @@ openapi:
 
 solr:
 
-  #Additional parameters allowed to be sent to solr. 
-  extraAllowedParameters:
-    # queryUUID is returned to the frontend and used as session tracking.
-    - queryUUID 
-    # Frontend uses facet.limit this for timeline
-    - facet.limit
-    # Frontend is sorting on dates when showing results from "Tidsmaskinen"
-    - sort
-
   # /select specific config
   select:
     # Parameters that are default for all queries, but can be overridden by the request.

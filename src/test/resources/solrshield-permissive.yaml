@@ -11,7 +11,7 @@ unlistedFields:
 unlistedParams:
   allowed: false
 
-passthroughParameters:
+extraAllowedParams:
   - queryUUID
 
 components:

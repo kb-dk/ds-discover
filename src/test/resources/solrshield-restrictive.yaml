@@ -12,7 +12,7 @@ unlistedFields:
 unlistedParams:
   allowed: false
 
-passthroughParameters: []
+extraAllowedParams: []
 
 components:
   search:

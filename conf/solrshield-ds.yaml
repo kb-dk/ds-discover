@@ -21,7 +21,7 @@ defaultMaxWeight: 5000
 
 # Parameters that bypass shield validation entirely. These are application-level parameters
 # that are not Solr-native and should not be evaluated by SolrShield.
-passthroughParameters:
+extraAllowedParams:
   # queryUUID is returned to the frontend and used as session tracking.
   - queryUUID
   # Frontend uses facet.limit for timeline

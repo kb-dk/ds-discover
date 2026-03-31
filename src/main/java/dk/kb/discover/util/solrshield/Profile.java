@@ -97,7 +97,7 @@ public class Profile extends ProfileElement<Profile> {
      * Parameters that bypass shield validation entirely. These are application-level parameters that are not
      * Solr-native and should not be evaluated by SolrShield (e.g. session tracking IDs).
      */
-    public List<String> passthroughParameters = Collections.emptyList();
+    public List<String> extraAllowedParams = Collections.emptyList();
 
     /**
      * First class search component. Always present, always enabled.
@@ -125,7 +125,7 @@ public class Profile extends ProfileElement<Profile> {
 
         unlistedParamsAllowed = config.getBoolean("unlistedParams.allowed", unlistedParamsAllowed);
         unlistedParamsWeight = config.getDouble("unlistedParams.weight", unlistedParamsWeight);
-        passthroughParameters = new ArrayList<>(config.getList("passthroughParameters", passthroughParameters));
+        extraAllowedParams = new ArrayList<>(config.getList("extraAllowedParams", extraAllowedParams));
 
         search = new SearchComponent(this, config.getSubMap("components.search")); // Mandatory
         facet = new FacetComponent(this, config.getSubMap("components.facet"));    // Mandatory
@@ -169,7 +169,7 @@ public class Profile extends ProfileElement<Profile> {
         Set<String> processedKeys = new HashSet<>();
         processedKeys.addAll(clone.search.apply(request));
         processedKeys.addAll(clone.facet.apply(request));
-        processedKeys.addAll(clone.passthroughParameters);       
+        processedKeys.addAll(clone.extraAllowedParams);       
         
         clone.unhandledParams =
                 StreamSupport.stream(request.spliterator(), false)
@@ -182,7 +182,7 @@ public class Profile extends ProfileElement<Profile> {
     protected void deepCopyNonAtomicAttributes(Profile clone) {
         clone.profile = clone; // Profile is the top element
         super.deepCopyNonAtomicAttributes(clone);
-        clone.passthroughParameters = new ArrayList<>(passthroughParameters);
+        clone.extraAllowedParams = new ArrayList<>(extraAllowedParams);
         clone.fields = fields.entrySet().stream()
                 .collect(Collectors.toMap(Map.Entry::getKey, v -> v.getValue().deepCopy(clone.profile)));
         clone.search = search.deepCopy(clone.profile);
