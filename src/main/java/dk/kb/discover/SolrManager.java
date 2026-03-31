@@ -21,6 +21,8 @@ import dk.kb.util.yaml.YAML;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -45,6 +47,7 @@ public class SolrManager implements ServiceConfig.Observer {
     private final Map<String, SolrService> solrs = new HashMap<>();
     private final Map<String, String> shieldPaths = new HashMap<>();
     private final Map<String, Optional<SolrShield>> shields = new HashMap<>();
+    private Path configBaseDir;
 
     public SolrManager() {
         log.info("Creating SolrManager");
@@ -56,6 +59,16 @@ public class SolrManager implements ServiceConfig.Observer {
      */
     public static SolrManager getInstance() {
         return instance;
+    }
+
+    /**
+     * Set the base directory for resolving relative shield config paths.
+     * Relative shield paths (e.g. {@code dr-solrshield.yaml}) will be resolved against this directory.
+     * @param configBaseDir the directory containing the application config files.
+     */
+    public void setConfigBaseDir(Path configBaseDir) {
+        this.configBaseDir = configBaseDir;
+        log.info("Config base directory set to '{}'", configBaseDir);
     }
 
     /**
@@ -144,6 +157,7 @@ public class SolrManager implements ServiceConfig.Observer {
 
     private Optional<SolrShield> getShieldInstance(String collection) {
         if (shields.containsKey(collection)) {
+            log.debug("Shield already loaded for collection '{}'", collection);
             return shields.get(collection);
         }
 
@@ -152,6 +166,11 @@ public class SolrManager implements ServiceConfig.Observer {
             log.debug("No shield configured for collection '{}'", collection);
             shields.put(collection, Optional.empty());
             return Optional.empty();
+        }
+
+        // Resolve relative shield paths against the config base directory
+        if (configBaseDir != null && !Paths.get(shieldPath).isAbsolute()) {
+            shieldPath = configBaseDir.resolve(shieldPath).toString();
         }
 
         try {
