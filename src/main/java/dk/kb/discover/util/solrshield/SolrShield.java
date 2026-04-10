@@ -55,7 +55,6 @@ public class SolrShield {
 
     /**
      * Create a SolrShield instance from the given configuration.
-     * <p>
      * The configuration must state the SolrShield properties directly at root level
      * (i.e. not wrapped under {@code solr.shield}).
      * @param solrShieldConf the configuration for this SolrShield instance.
@@ -78,7 +77,6 @@ public class SolrShield {
     /**
      * Estimate the weight of the {@code request} and construct a {@link Response} with the weight as well
      * as a boolean stated if the request is allowed to be issued.
-     * <p>
      * This method uses {@link #defaultMaxWeight} as {@code maxWeight}.
      * @param request a Solr request.
      * @return calculated weight etc.
@@ -90,7 +88,6 @@ public class SolrShield {
     /**
      * Estimate the weight of the {@code request} and construct a {@link Response} with the weight as well
      * as a boolean stated if the request is allowed to be issued.
-     * <p>
      * This method uses {@link #defaultMaxWeight} as {@code maxWeight}.
      * @param request a Solr request.
      * @return calculated weight etc.
@@ -129,7 +126,6 @@ public class SolrShield {
 
     /**
      * Estimate the weight of the {@code request}.
-     * <p>
      * This also checks for hard limits or non-allowed arguments. If any of those are triggered,
      * {@link Response#allowed} is set to false, else it is set to true.
      * @param request a Solr request.
