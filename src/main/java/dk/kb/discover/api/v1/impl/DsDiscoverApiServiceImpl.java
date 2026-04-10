@@ -191,6 +191,8 @@ public class DsDiscoverApiServiceImpl extends ImplBase implements DsDiscoverApi 
                     mltFl, mltMintf, mltMindf, mltMaxdf, mltMaxdfpct, mltMinwl, mltMaxwl, mltMaxqt,
                     mltBoost, mltInterestingTerms,
                     extra);
+        } catch (ServiceException e){
+            throw e;
         } catch (Exception e){
             throw handleException(e);
         }
@@ -312,6 +314,8 @@ public class DsDiscoverApiServiceImpl extends ImplBase implements DsDiscoverApi 
             		qOp, wt, version, indent, debug, debugExplainStructured, extra);
             
             return SolrService.removePrefixedFilters(rawResponse, FILTER_CACHE_PREFIX, wt);
+        } catch (ServiceException e){
+            throw e;
         } catch (Exception e){
             throw handleException(e);
         }
