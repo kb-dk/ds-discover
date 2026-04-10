@@ -277,7 +277,6 @@ class SolrShieldTest {
                         ", with: " + responseWith.weight);
     }
 
-
     @Test
     void rowsExceedingMaxValueRejected() {
         Map<String, String[]> request = Map.of(
@@ -305,7 +304,6 @@ class SolrShieldTest {
         assertTrue(response.allowed,
                 "Request with rows=100 should be accepted but got reasons: " + response.reasons);
     }
-
 
     @Test
     void startExceedingMaxValueRejected() {
@@ -554,14 +552,14 @@ class SolrShieldTest {
     @Test
     void perCollectionShieldLoaded() {
         YAML config = buildCollectionConfig(Map.of(
-                "permissive-coll", "solrshield-permissive.yaml",
-                "restrictive-coll", "solrshield-restrictive.yaml"
+                "permissive-collection", "solrshield-permissive.yaml",
+                "restrictive-collection", "solrshield-restrictive.yaml"
         ));
         SolrManager.getInstance().setConfig(config);
 
         try {
-            Optional<SolrShield> permissive = SolrManager.getShield("permissive-coll");
-            Optional<SolrShield> restrictive = SolrManager.getShield("restrictive-coll");
+            Optional<SolrShield> permissive = SolrManager.getShield("permissive-collection");
+            Optional<SolrShield> restrictive = SolrManager.getShield("restrictive-collection");
 
             assertTrue(permissive.isPresent(), "Permissive collection should have a shield");
             assertTrue(restrictive.isPresent(), "Restrictive collection should have a shield");
