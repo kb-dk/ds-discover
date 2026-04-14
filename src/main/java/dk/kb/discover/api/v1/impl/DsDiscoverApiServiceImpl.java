@@ -169,15 +169,7 @@ public class DsDiscoverApiServiceImpl extends ImplBase implements DsDiscoverApi 
                       collection, q, getCallDetails());
             Map<String, String[]> extra = getExtraParams();
 
-            Optional<SolrShield> shield = SolrManager.getShield(collection);
-            if (shield.isPresent()) {
-                Response shieldResponse = shield.get().evaluateRequest(httpServletRequest.getParameterMap());
-                log.debug("solrMLT(collection='{}', has weight={} with maximum weight allowed={} ",collection, shieldResponse.getWeight(), shieldResponse.getMaxWeight());
-                if (!shieldResponse.isAllowed()) {
-                    throw new ServiceException("Call blocked by SolrShield: " + shieldResponse.getReasons(),
-                            javax.ws.rs.core.Response.Status.FORBIDDEN);
-                }
-            }
+            evaluateShield(collection);
 
             SolrService solr = SolrManager.getSolrService(collection);
             // TODO: Pass the map of request parameters instead of all parameters as first class
@@ -192,6 +184,8 @@ public class DsDiscoverApiServiceImpl extends ImplBase implements DsDiscoverApi 
                     mltBoost, mltInterestingTerms,
                     extra);
         } catch (ServiceException e){
+            // Rethrow ServiceExcption to avoid handleException printing stacktrace
+            // TODO: fix this in kb-util (handleException)
             throw e;
         } catch (Exception e){
             throw handleException(e);
@@ -292,15 +286,7 @@ public class DsDiscoverApiServiceImpl extends ImplBase implements DsDiscoverApi 
                     collection, q, getCallDetails());
             Map<String, String[]> extra = getExtraParams();
 
-            Optional<SolrShield> shield = SolrManager.getShield(collection);
-            if (shield.isPresent()) {
-                Response shieldResponse = shield.get().evaluateRequest(httpServletRequest.getParameterMap());
-                log.debug("solrSearch(collection='{}', has weight={} with maximum weight allowed={} ",collection, shieldResponse.getWeight(), shieldResponse.getMaxWeight());
-                if (!shieldResponse.isAllowed()) {
-                    throw new ServiceException("Call blocked by SolrShield: " + shieldResponse.getReasons(),
-                            javax.ws.rs.core.Response.Status.FORBIDDEN);
-                }
-            }
+            evaluateShield(collection);
 
             SolrService solr = SolrManager.getSolrService(collection);
             // TODO: Pass the map of request parameters instead of all parameters as first class
@@ -315,6 +301,8 @@ public class DsDiscoverApiServiceImpl extends ImplBase implements DsDiscoverApi 
             
             return SolrService.removePrefixedFilters(rawResponse, FILTER_CACHE_PREFIX, wt);
         } catch (ServiceException e){
+            // Rethrow ServiceExcption to avoid handleException printing stacktrace
+            // TODO: fix this in kb-util (handleException)
             throw e;
         } catch (Exception e){
             throw handleException(e);
@@ -353,6 +341,24 @@ public class DsDiscoverApiServiceImpl extends ImplBase implements DsDiscoverApi 
     
     
     
+    /**
+     * Evaluate the request against the SolrShield for the given collection.
+     * If the shield blocks the request, a {@link ServiceException} with status 403 is thrown.
+     * @param collection the collection to evaluate the shield for.
+     */
+    private void evaluateShield(String collection) {
+        Optional<SolrShield> shield = SolrManager.getShield(collection);
+        if (shield.isPresent()) {
+            Response shieldResponse = shield.get().evaluateRequest(httpServletRequest.getParameterMap());
+            log.debug("collection='{}' has weight={} with maximum weight allowed={}",
+                      collection, shieldResponse.getWeight(), shieldResponse.getMaxWeight());
+            if (!shieldResponse.isAllowed()) {
+                throw new ServiceException("Call blocked by SolrShield: " + shieldResponse.getReasons(),
+                        javax.ws.rs.core.Response.Status.FORBIDDEN);
+            }
+        }
+    }
+
     /**
      * Request a filter query from ds-license and append it to {@code fq}.
      * @param designation describes the caller, used for logging only.
