@@ -177,7 +177,6 @@ class SolrShieldTest {
     }
 
     // --- Unlisted / unknown params ---
-
     @Test
     void unknownParamRejected() {
         Map<String, String[]> request = Map.of(
@@ -207,7 +206,6 @@ class SolrShieldTest {
     }
 
     // --- Explicitly denied param overrides unlistedParams.allowed=true ---
-
     @Test
     void testDisallowedSolrParam() throws IOException {
 
@@ -222,7 +220,6 @@ class SolrShieldTest {
         assertTrue(response.reasons.toString().contains("not allowed as the param itself is not allowed"),
                 "Reason should indicate the param itself is not allowed, got: " + response.reasons);
     }
-
 
     @Test
     void disabledShieldAllowsEverything() throws IOException {
@@ -463,7 +460,6 @@ class SolrShieldTest {
                 "Reason should mention weight exceeded");
     }
 
-
     @Test
     void facetQueryDenied() {
         Map<String, String[]> request = Map.of(
@@ -479,7 +475,6 @@ class SolrShieldTest {
                 "Reason should mention 'facet.query'");
     }
 
-
     @Test
     void flDeniedField() {
         Map<String, String[]> request = Map.of(
@@ -492,7 +487,6 @@ class SolrShieldTest {
         assertTrue(response.reasons.toString().contains("denied"),
                 "Reason should mention denied list");
     }
-
 
     @Test
     void multipleReasonsCollected() {

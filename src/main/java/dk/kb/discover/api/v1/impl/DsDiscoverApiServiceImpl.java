@@ -353,6 +353,7 @@ public class DsDiscoverApiServiceImpl extends ImplBase implements DsDiscoverApi 
             log.debug("collection='{}' has weight={} with maximum weight allowed={}",
                       collection, shieldResponse.getWeight(), shieldResponse.getMaxWeight());
             if (!shieldResponse.isAllowed()) {
+                log.debug("Shield blocked request for collection='{}' with parameters {}: {}", collection, httpServletRequest.getParameterMap(),shieldResponse.getReasons());
                 throw new ServiceException("Call blocked by SolrShield: " + shieldResponse.getReasons(),
                         javax.ws.rs.core.Response.Status.FORBIDDEN);
             }
