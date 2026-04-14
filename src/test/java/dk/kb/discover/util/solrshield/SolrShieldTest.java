@@ -67,6 +67,28 @@ class SolrShieldTest {
         // TODO: Add the rest of the search params
     }
 
+    private static YAML buildCollectionConfig(Map<String, String> collectionShields) {
+        List<Map<String, Object>> collections = new ArrayList<>();
+        for (Map.Entry<String, String> entry : collectionShields.entrySet()) {
+            Map<String, Object> inner = new LinkedHashMap<>();
+            inner.put("server", "http://localhost:8983");
+            inner.put("collection", entry.getKey());
+
+            if (entry.getValue() != null) {
+                inner.put("shield", entry.getValue());
+            }
+
+            Map<String, Object> collEntry = new LinkedHashMap<>();
+            collEntry.put(entry.getKey(), inner);
+            collections.add(collEntry);
+        }
+        Map<String, Object> solr = new LinkedHashMap<>();
+        solr.put("collections", collections);
+        Map<String, Object> root = new LinkedHashMap<>();
+        root.put("solr", solr);
+        return new YAML(root);
+    }
+
     @Test
     void testDeepCopySearchApply() {
         SearchComponent search = shield.profile.search;
@@ -366,20 +388,20 @@ class SolrShieldTest {
 
     @Test
     void moreRowsIncreasesWeight() {
-        Map<String, String[]> request10 = Map.of(
+        Map<String, String[]> requestRows10 = Map.of(
                 "q", new String[]{"*:*"},
                 "fl", new String[]{"title"},
                 "rows", new String[]{"10"}
         );
-        Map<String, String[]> request100 = Map.of(
+        Map<String, String[]> requestRows100 = Map.of(
                 "q", new String[]{"*:*"},
                 "fl", new String[]{"title"},
                 "rows", new String[]{"100"}
         );
-        Response r10 = shield.evaluateRequest(request10.entrySet(), 100000.0);
-        Response r100 = shield.evaluateRequest(request100.entrySet(), 100000.0);
-        assertTrue(r100.weight > r10.weight,
-                "More rows should increase weight. rows=10: " + r10.weight + ", rows=100: " + r100.weight);
+        Response responseRows10 = shield.evaluateRequest(requestRows10.entrySet(), 100000.0);
+        Response responseRows100 = shield.evaluateRequest(requestRows100.entrySet(), 100000.0);
+        assertTrue(responseRows100.weight > responseRows10.weight,
+                "More rows should increase weight. rows=10: " + responseRows10.weight + ", rows=100: " + responseRows100.weight);
     }
 
     @Test
@@ -393,10 +415,10 @@ class SolrShieldTest {
                 "q", new String[]{"*:*"},
                 "fl", new String[]{"text"}
         );
-        Response rLight = shield.evaluateRequest(requestLight.entrySet(), 100000.0);
-        Response rHeavy = shield.evaluateRequest(requestHeavy.entrySet(), 100000.0);
-        assertTrue(rHeavy.weight > rLight.weight,
-                "Heavier field should increase weight. id: " + rLight.weight + ", text: " + rHeavy.weight);
+        Response responseLight = shield.evaluateRequest(requestLight.entrySet(), 100000.0);
+        Response responseHeavy = shield.evaluateRequest(requestHeavy.entrySet(), 100000.0);
+        assertTrue(responseHeavy.weight > responseLight.weight,
+                "Heavier field should increase weight. id: " + responseLight.weight + ", text: " + responseHeavy.weight);
     }
 
 
@@ -516,31 +538,11 @@ class SolrShieldTest {
                 "rows", new String[]{"1"},
                 "debug", new String[]{"true"}
         );
-        Response rNoDebug = shield.evaluateRequest(requestNoDebug.entrySet(), 100000.0);
-        Response rDebug = shield.evaluateRequest(requestDebug.entrySet(), 100000.0);
-        assertTrue(rDebug.weight > rNoDebug.weight + 400,
+        Response responseNoDebug = shield.evaluateRequest(requestNoDebug.entrySet(), 100000.0);
+        Response responseDebug = shield.evaluateRequest(requestDebug.entrySet(), 100000.0);
+        assertTrue(responseDebug.weight > responseNoDebug.weight + 400,
                 "Debug should add at least 500 weight (weightConstant=500). " +
-                        "Without: " + rNoDebug.weight + ", with: " + rDebug.weight);
-    }
-
-    private static YAML buildCollectionConfig(Map<String, String> collectionShields) {
-        List<Map<String, Object>> collections = new ArrayList<>();
-        for (Map.Entry<String, String> entry : collectionShields.entrySet()) {
-            Map<String, Object> inner = new LinkedHashMap<>();
-            inner.put("server", "http://localhost:8983");
-            inner.put("collection", entry.getKey());
-            if (entry.getValue() != null) {
-                inner.put("shield", entry.getValue());
-            }
-            Map<String, Object> collEntry = new LinkedHashMap<>();
-            collEntry.put(entry.getKey(), inner);
-            collections.add(collEntry);
-        }
-        Map<String, Object> solr = new LinkedHashMap<>();
-        solr.put("collections", collections);
-        Map<String, Object> root = new LinkedHashMap<>();
-        root.put("solr", solr);
-        return new YAML(root);
+                        "Without: " + responseNoDebug.weight + ", with: " + responseDebug.weight);
     }
 
     @Test
@@ -568,13 +570,13 @@ class SolrShieldTest {
     @Test
     void noShieldForUnconfiguredCollection() {
         Map<String, String> collections = new LinkedHashMap<>();
-        collections.put("permissive-coll", "solrshield-permissive.yaml");
-        collections.put("noshield-coll", null);
+        collections.put("permissive-collection", "solrshield-permissive.yaml");
+        collections.put("noshield-collection", null);
         YAML config = buildCollectionConfig(collections);
         SolrManager.getInstance().setConfig(config);
 
         try {
-            Optional<SolrShield> noShield = SolrManager.getShield("noshield-coll");
+            Optional<SolrShield> noShield = SolrManager.getShield("noshield-collection");
             assertTrue(noShield.isEmpty(), "Collection without shield config should return empty");
         } finally {
             SolrManager.getInstance().setConfig(buildCollectionConfig(Map.of()));
@@ -584,12 +586,12 @@ class SolrShieldTest {
     @Test
     void permissiveShieldAllowsBasicQuery() {
         YAML config = buildCollectionConfig(Map.of(
-                "permissive-coll", "solrshield-permissive.yaml"
+                "permissive-collection", "solrshield-permissive.yaml"
         ));
         SolrManager.getInstance().setConfig(config);
 
         try {
-            SolrShield shield = SolrManager.getShield("permissive-coll").orElseThrow();
+            SolrShield shield = SolrManager.getShield("permissive-collection").orElseThrow();
             Map<String, String[]> request = Map.of(
                     "q", new String[]{"*:*"},
                     "fl", new String[]{"title"},
@@ -606,12 +608,12 @@ class SolrShieldTest {
     @Test
     void restrictiveShieldRejectsBasicQuery() {
         YAML config = buildCollectionConfig(Map.of(
-                "restrictive-coll", "solrshield-restrictive.yaml"
+                "restrictive-collection", "solrshield-restrictive.yaml"
         ));
         SolrManager.getInstance().setConfig(config);
 
         try {
-            SolrShield shield = SolrManager.getShield("restrictive-coll").orElseThrow();
+            SolrShield shield = SolrManager.getShield("restrictive-collection").orElseThrow();
             // defaultMaxWeight=100, but weightConstant(100) + search.weightConstant(100) already exceeds it
             Map<String, String[]> request = Map.of(
                     "q", new String[]{"*:*"},
@@ -629,14 +631,14 @@ class SolrShieldTest {
     @Test
     void sameQueryDifferentResultPerCollection() {
         YAML config = buildCollectionConfig(Map.of(
-                "permissive-coll", "solrshield-permissive.yaml",
-                "restrictive-coll", "solrshield-restrictive.yaml"
+                "permissive-collection", "solrshield-permissive.yaml",
+                "restrictive-collection", "solrshield-restrictive.yaml"
         ));
         SolrManager.getInstance().setConfig(config);
 
         try {
-            SolrShield permissive = SolrManager.getShield("permissive-coll").orElseThrow();
-            SolrShield restrictive = SolrManager.getShield("restrictive-coll").orElseThrow();
+            SolrShield permissive = SolrManager.getShield("permissive-collection").orElseThrow();
+            SolrShield restrictive = SolrManager.getShield("restrictive-collection").orElseThrow();
 
             Map<String, String[]> request = Map.of(
                     "q", new String[]{"*:*"},
@@ -658,12 +660,12 @@ class SolrShieldTest {
     @Test
     void restrictiveShieldDeniesTextField() {
         YAML config = buildCollectionConfig(Map.of(
-                "restrictive-coll", "solrshield-restrictive.yaml"
+                "restrictive-collection", "solrshield-restrictive.yaml"
         ));
         SolrManager.getInstance().setConfig(config);
 
         try {
-            SolrShield shield = SolrManager.getShield("restrictive-coll").orElseThrow();
+            SolrShield shield = SolrManager.getShield("restrictive-collection").orElseThrow();
             Map<String, String[]> request = Map.of(
                     "q", new String[]{"*:*"},
                     "fl", new String[]{"text"}
@@ -681,12 +683,12 @@ class SolrShieldTest {
     @Test
     void permissiveShieldAllowsTextField() {
         YAML config = buildCollectionConfig(Map.of(
-                "permissive-coll", "solrshield-permissive.yaml"
+                "permissive-collection", "solrshield-permissive.yaml"
         ));
         SolrManager.getInstance().setConfig(config);
 
         try {
-            SolrShield shield = SolrManager.getShield("permissive-coll").orElseThrow();
+            SolrShield shield = SolrManager.getShield("permissive-collection").orElseThrow();
             // 'text' is NOT denied in the permissive shield
             Map<String, String[]> request = Map.of(
                     "q", new String[]{"*:*"},
